@@ -1,0 +1,72 @@
+# Checks the Guide's code blocks against the language, so that the site
+# notices when the language changes under it:
+#
+#   quarz run scripts/check_guide.qz [QUARZ]
+#
+# Every ```quarz block under content/ is a program: by default it must
+# run (`quarz run`, exit status 0); one marked ```quarz,check=test must
+# pass as a test file (`quarz test`), and one marked ```quarz,check=error
+# must be rejected by the type checker (`quarz check`), since it shows an
+# error. Blocks in other languages are not checked. QUARZ is the command
+# to check with (default: `quarz` on the PATH); the exit status is 1 when
+# a block fails, with the block's output.
+
+FENCE = /\A(`{3,}|~{3,})[ \t]*quarz(?:,[ \t]*check=(run|test|error))?[ \t]*\z/
+
+data Block = (file: String, line: Int, mode: String, code: String)
+
+def blocks_of(file: String) -> Array[Block]
+  blocks = Array::Builder[Block].new
+  code = Array::Builder[String].new
+  fence: String? = nil
+  mode = "run"
+  start = 0
+  File.read(file).lines(chomp: true).each_with_index do |text, i|
+    open_fence = fence
+    if open_fence
+      closing = text.strip
+      if closing.start_with?(open_fence) && closing.chars.all? { |c| c == open_fence[0] }
+        blocks << Block.new(file, start, mode, code.to_a.join("\n") + "\n")
+        code = Array::Builder[String].new
+        fence = nil
+      else
+        code << text
+      end
+      next
+    end
+    m = text.match(FENCE)
+    next unless m
+    fence = m[1].to_s
+    mode = m[2] || "run"
+    start = i + 1
+  end
+  raise "#{file}:#{start}: unterminated code block" if fence
+  blocks.to_a
+end
+
+quarz = ARGV[0]? || "quarz"
+dir = "#{Dir.tmpdir}/quarz-guide-#{Process.pid}"
+Dir.mkdir_p(dir)
+failed = 0
+checked = 0
+Dir.glob("content/**/*.md").sort.each do |file|
+  blocks_of(file).each_with_index do |block, n|
+    path = "#{dir}/#{File.basename(file, ".md")}-#{n + 1}.qz"
+    File.write(path, block.code)
+    out = case block.mode
+          in "test" then Process.run(quarz, "test", path)
+          in "error" then Process.run(quarz, "check", path)
+          else Process.run(quarz, "run", path)
+          end
+    ok = block.mode == "error" ? !out.success? : out.success?
+    checked += 1
+    next if ok
+    failed += 1
+    expected = block.mode == "error" ? "an error" : "success"
+    puts "#{block.file}:#{block.line}: expected #{expected} (#{block.mode}), got status #{out.status}"
+    puts (out.stderr + out.stdout).lines.map { |l| "  " + l }.join
+  end
+end
+Dir.rm_rf(dir)
+puts "check_guide: #{checked} blocks, #{failed} failed"
+exit 1 if failed > 0

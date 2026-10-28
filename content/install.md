@@ -36,4 +36,4 @@ A program runs the same with `quarz run` and compiled with `quarz build`;
 the interpreter starts at once, the executable runs faster. `quarz test`
 runs a cog's tests, and `quarz doc` shows the documentation of a name.
 
-Next, read the [documentation](@/docs/_index.md).
+Next, read the [guide](@/guide/_index.md).

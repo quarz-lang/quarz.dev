@@ -5,9 +5,6 @@ default_language = "en"
 compile_sass = false
 build_search_index = false
 generate_feeds = false
-# The imported docs are Markdown only: `{{ }}` in them is Quarz or Crystal,
-# not a shortcode.
-skip_content_templating = ["docs/*.md"]
 
 [markdown]
 insert_anchor_links = "left"
@@ -28,35 +25,7 @@ internal_level = "error"
 [slugify]
 paths = "on"
 taxonomies = "on"
-# For the site's own pages: the imported docs' headings carry the anchors
-# GitHub gives them (`{#1-字句}`, scripts/docs.qz).
 anchors = "on"
 
 [extra]
 github = "https://github.com/quarz-lang/quarz"
-
-[translations]
-description = "A programming language that feels like Ruby, built on static typing, immutability and concurrency."
-nav_docs = "Docs"
-nav_install = "Install"
-nav_std = "Std"
-other_language = "日本語"
-previous = "Previous"
-next = "Next"
-source = "Source of this page"
-contents = "Contents"
-
-[languages.ja]
-title = "Quarz"
-description = "Ruby のような書き心地と、静的型付け・不変性・並行性を備えたプログラミング言語。"
-
-[languages.ja.translations]
-description = "Ruby のような書き心地と、静的型付け・不変性・並行性を備えたプログラミング言語。"
-nav_docs = "ドキュメント"
-nav_install = "インストール"
-nav_std = "標準ライブラリ"
-other_language = "English"
-previous = "前へ"
-next = "次へ"
-source = "このページのソース"
-contents = "目次"

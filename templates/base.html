@@ -1,33 +1,22 @@
 <!doctype html>
-<html lang="{{ lang }}">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ config.title }}{% endblock title %}</title>
-  <meta name="description" content="{% block description %}{{ trans(key="description", lang=lang) }}{% endblock description %}">
+  <meta name="description" content="{% block description %}{{ config.description }}{% endblock description %}">
   <link rel="stylesheet" href="{{ get_url(path='style.css', cachebust=true) }}">
   <link rel="stylesheet" href="{{ get_url(path='giallo-light.css', cachebust=true) }}" media="(prefers-color-scheme: light)">
   <link rel="stylesheet" href="{{ get_url(path='giallo-dark.css', cachebust=true) }}" media="(prefers-color-scheme: dark)">
-  {%- if page %}{% set translations = page.translations %}{% elif section %}{% set translations = section.translations %}{% else %}{% set translations = [] %}{% endif %}
-  {%- for t in translations %}
-  <link rel="alternate" hreflang="{{ t.lang }}" href="{{ t.permalink | safe }}">
-  {%- endfor %}
 </head>
 <body>
-  {%- set prefix = "" %}{% if lang != config.default_language %}{% set prefix = "/" ~ lang %}{% endif %}
   <header class="site">
     <nav>
-      <a class="brand" href="{{ prefix }}/">Quarz</a>
-      <a href="{{ prefix }}/install/">{{ trans(key="nav_install", lang=lang) }}</a>
-      <a href="{{ prefix }}/docs/">{{ trans(key="nav_docs", lang=lang) }}</a>
-      <a href="/std/">{{ trans(key="nav_std", lang=lang) }}</a>
+      <a class="brand" href="/">Quarz</a>
+      <a href="/install/">Install</a>
+      <a href="/guide/">Guide</a>
+      <a href="/std/">Std</a>
       <a href="{{ config.extra.github }}">GitHub</a>
-      {%- for t in translations %}{% if t.lang != lang %}
-      <a class="lang" hreflang="{{ t.lang }}" lang="{{ t.lang }}" href="{{ t.permalink | safe }}">{{ trans(key="other_language", lang=lang) }}</a>
-      {%- endif %}{% endfor %}
-      {%- if translations | length == 0 %}
-      <a class="lang" hreflang="{% if lang == 'ja' %}en{% else %}ja{% endif %}" lang="{% if lang == 'ja' %}en{% else %}ja{% endif %}" href="{% if lang == 'ja' %}/{% else %}/ja/{% endif %}">{{ trans(key="other_language", lang=lang) }}</a>
-      {%- endif %}
     </nav>
   </header>
   <main>
