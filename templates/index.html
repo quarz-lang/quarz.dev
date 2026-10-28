@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <h1>Quarz</h1>
+  <p class="tagline">{{ section.extra.tagline }}</p>
+  <p class="actions">
+    <a class="button" href="{{ get_url(path='@/install.md', lang=lang) }}">{{ trans(key="nav_install", lang=lang) }}</a>
+    <a class="button secondary" href="{{ get_url(path='@/docs/_index.md', lang=lang) }}">{{ trans(key="nav_docs", lang=lang) }}</a>
+  </p>
+</section>
+<article class="prose">
+{{ section.content | safe }}
+</article>
+{% endblock content %}
