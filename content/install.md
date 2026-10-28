@@ -8,8 +8,9 @@ Quarz has no release yet: build it from source.
 ## Requirements
 
 - [Rust](https://www.rust-lang.org/tools/install) 1.96 or later, with Cargo.
-- clang 14 or later, for `quarz build`, which writes LLVM IR and has
-  clang compile it. `quarz run` does not need it.
+- clang 14 or later, for `quarz build` (and `quarz test --release`),
+  which writes LLVM IR and has clang compile it. `quarz run` does not
+  need it.
 - Linux on x86-64: CI runs there only, and other systems are untested.
 
 ## Build
@@ -20,8 +21,13 @@ cd quarz
 cargo build --release
 ```
 
-The command is `target/release/quarz`; put that directory on your `PATH`
-or copy the file to one that is.
+The command is `target/release/quarz`: put `target/release` on your
+`PATH`. If you copy the command elsewhere, copy `libquarz_vm.a` from the
+same directory next to it too, or point `QUARZ_RT_LIB` at it:
+`quarz build` (and `quarz test --release`) links this runtime library
+into the executables it makes. `quarz run`, `check`, `repl`, `test` and
+`doc` need only the command, which has the standard library's sources
+built in.
 
 ## Run a program
 
