@@ -30,9 +30,10 @@ total.map { |word, count| WordCount.new(word, count) }
      .each { |wc| puts "#{wc.word}: #{wc.count}" }
 ```
 
-What differs from Ruby here is in three places: types (`text: String`,
-`-> Hash[String, Int]`, `Comparable[WordCount]`), immutable records with
-`data`, and tasks (`Task.scope`, `spawn`, `await`). The rest is Ruby.
+In the code above, only three things differ from Ruby: types
+(`text: String`, `-> Hash[String, Int]`, `Comparable[WordCount]`),
+immutable records with `data`, and tasks (`Task.scope`, `spawn`,
+`await`). The rest is Ruby.
 
 ## Features
 
