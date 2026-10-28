@@ -173,6 +173,3 @@ footer.site {
   border-top: 1px solid var(--border);
 }
 .pager .next { margin-left: auto; text-align: right; }
-
-.posts { list-style: none; padding: 0; }
-.posts time { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 0.5rem; }

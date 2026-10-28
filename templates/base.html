@@ -21,7 +21,6 @@
       <a href="{{ prefix }}/install/">{{ trans(key="nav_install", lang=lang) }}</a>
       <a href="{{ prefix }}/docs/">{{ trans(key="nav_docs", lang=lang) }}</a>
       <a href="/std/">{{ trans(key="nav_std", lang=lang) }}</a>
-      <a href="{{ prefix }}/blog/">{{ trans(key="nav_blog", lang=lang) }}</a>
       <a href="{{ config.extra.github }}">GitHub</a>
       {%- for t in translations %}{% if t.lang != lang %}
       <a class="lang" hreflang="{{ t.lang }}" lang="{{ t.lang }}" href="{{ t.permalink | safe }}">{{ trans(key="other_language", lang=lang) }}</a>

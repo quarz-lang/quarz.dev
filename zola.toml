@@ -40,12 +40,10 @@ description = "A programming language that feels like Ruby, built on static typi
 nav_docs = "Docs"
 nav_install = "Install"
 nav_std = "Std"
-nav_blog = "Blog"
 other_language = "日本語"
 previous = "Previous"
 next = "Next"
 source = "Source of this page"
-no_posts = "No posts yet."
 contents = "Contents"
 
 [languages.ja]
@@ -57,10 +55,8 @@ description = "Ruby のような書き心地で、静的型付け・不変性・
 nav_docs = "ドキュメント"
 nav_install = "インストール"
 nav_std = "標準ライブラリ"
-nav_blog = "ブログ"
 other_language = "English"
 previous = "前へ"
 next = "次へ"
 source = "このページのソース"
-no_posts = "まだ記事はありません。"
 contents = "目次"
