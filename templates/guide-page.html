@@ -1,22 +1,22 @@
 {% extends "base.html" %}
 {% block title %}{{ page.title }} · {{ config.title }}{% endblock title %}
+{% block description %}{{ page.description | default(value=config.description) }}{% endblock description %}
 {% block content %}
-{%- set docs = get_section(path="docs/_index.md", lang=lang) %}
+{%- set guide = get_section(path="guide/_index.md") %}
 <div class="doc">
-  <nav class="doc-nav" aria-label="{{ trans(key='nav_docs', lang=lang) }}">
+  <nav class="doc-nav" aria-label="Guide">
     <details>
-      <summary>{{ trans(key="nav_docs", lang=lang) }}</summary>
+      <summary>Guide</summary>
       <ol>
-        {%- for p in docs.pages %}
+        {%- for p in guide.pages %}
         <li{% if p.path == page.path %} aria-current="page"{% endif %}><a href="{{ p.permalink | safe }}">{{ p.title }}</a></li>
         {%- endfor %}
       </ol>
     </details>
   </nav>
   <article class="prose">
-    <h1>{{ page.extra.heading | default(value=page.title) | markdown(inline=true) | safe }}</h1>
+    <h1>{{ page.title }}</h1>
     {{ page.content | safe }}
-    <p class="source"><a href="{{ page.extra.source }}">{{ trans(key="source", lang=lang) }}</a></p>
   </article>
 </div>
 <nav class="pager">
