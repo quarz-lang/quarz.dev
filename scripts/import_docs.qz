@@ -1,0 +1,45 @@
+# Imports the language's documents, docs/NN-name.md and docs/NN-name.ja.md
+# of a quarz checkout, into content/docs/ as Zola pages:
+#
+#   quarz run scripts/import_docs.qz QUARZ_DIR COMMIT [OUT_DIR]
+#
+# Each page gets a front matter (its title is the first `# ` heading, its
+# weight the number, its slug the name without the number, so that
+# renumbering keeps the URLs), loses the line linking to the other
+# language (the site's switch does that), and has its links to the other
+# documents made Zola's internal links, which `zola build` checks, and its
+# links to the repository's files made GitHub URLs at COMMIT. Headings get
+# the anchors GitHub gives them, so that a link to one works on both.
+# Quarz's code blocks are written `ruby` so that GitHub colors them; here
+# they become `quarz`, and Ruby's own (`rb`) stay Ruby. See docs.qz.
+
+require_relative "docs"
+
+def fail(message: String) -> Nil
+  STDERR.puts "import_docs: #{message}"
+  exit 1
+end
+
+quarz_dir = ARGV[0]?
+commit = ARGV[1]?
+out_dir = ARGV[2]? || "content/docs"
+unless quarz_dir && commit
+  STDERR.puts "usage: quarz run scripts/import_docs.qz QUARZ_DIR COMMIT [OUT_DIR]"
+  exit 2
+end
+
+docs_dir = "#{quarz_dir}/docs"
+fail("#{docs_dir} is not a directory") unless Dir.exist?(docs_dir)
+docs = Dir.children(docs_dir).filter_map { |name| Docs.doc("#{docs_dir}/#{name}") }
+fail("no documents in #{docs_dir}") if docs.empty?
+
+Dir.mkdir_p(out_dir)
+begin
+  docs.each do |doc|
+    out = "#{out_dir}/#{doc.slug}#{doc.ja ? ".ja" : ""}.md"
+    File.write(out, Docs.convert(doc, File.read(doc.path), quarz_dir, commit))
+  end
+rescue Docs::Error => e
+  fail(e.message)
+end
+puts "import_docs: #{docs.size} documents into #{out_dir}"

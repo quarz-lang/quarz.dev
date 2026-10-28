@@ -1,0 +1,77 @@
+# quarz test scripts/docs_test.qz
+#
+# The anchors are those GitHub shows for the same headings in the
+# language's docs.
+
+require "test"
+require_relative "docs"
+
+class AnchorTest < Test::Case
+  def test_english
+    assert_equal("1-lexical-structure", Docs.anchor("1. Lexical structure"))
+    assert_equal("3-the-lock-file-coglock", Docs.anchor("3. The Lock File: `Cog.lock`"))
+    assert_equal("2-structured-concurrency-taskscope", Docs.anchor("2. Structured Concurrency (`Task.scope`)"))
+    assert_equal("5-actors-and-erlang-style-design", Docs.anchor("5. Actors and Erlang-style Design"))
+    assert_equal("channelselect", Docs.anchor("`Channel.select`"))
+  end
+
+  def test_japanese
+    assert_equal("1-字句", Docs.anchor("1. 字句"))
+    assert_equal("13-文字列配列ハッシュのリテラル", Docs.anchor("13. 文字列・配列・ハッシュのリテラル"))
+    assert_equal("計算量と一意ならその場で更新", Docs.anchor("計算量と「一意なら、その場で更新」"))
+    assert_equal("3-builder可変タスク局所", Docs.anchor("3. Builder(可変・タスク局所)"))
+    assert_equal("生存期間と-deinitialize", Docs.anchor("生存期間と `deinitialize`"))
+  end
+
+  def test_keeps_underscores_and_link_text
+    assert_equal("attr_reader-and-friends", Docs.anchor("`attr_reader` and [friends](01-syntax.md)"))
+  end
+end
+
+class ConvertTest < Test::Case
+  @doc: Docs::Doc = Docs::Doc.new("docs/01-syntax.md", 1, "syntax", false)
+
+  def convert(text: String) -> String
+    Docs.convert(@doc, text, ".", "abc")
+  end
+
+  # The page after its front matter and the blank line that follows it.
+  def body(text: String) -> String
+    (convert(text).split("+++\n", 3)[2]? || "").delete_prefix("\n")
+  end
+
+  def test_front_matter
+    page = convert("# Syntax: `def`\n\n日本語版: [01-syntax.ja.md](01-syntax.ja.md)\n\nText.\n")
+    assert_equal(
+      "+++\ntitle = \"Syntax: `def`\"\nweight = 1\nslug = \"syntax\"\n\n[extra]\n" \
+      "source = \"https://github.com/quarz-lang/quarz/blob/abc/docs/01-syntax.md\"\n+++\n\nText.\n",
+      page,
+    )
+  end
+
+  def test_repeated_headings_are_numbered
+    assert_equal(
+      "## Notes {#notes}\n## Notes {#notes-1}\n### Notes {#notes-2}\n",
+      body("# Title\n## Notes\n## Notes\n### Notes\n"),
+    )
+  end
+
+  def test_links
+    assert_equal(
+      "See [types](@/docs/types.md#3-generics), [型](@/docs/types.ja.md), `f[x](y)` and [x](https://example.com).\n",
+      body("# T\nSee [types](02-types.md#3-generics), [型](02-types.ja.md), `f[x](y)` and [x](https://example.com).\n"),
+    )
+  end
+
+  def test_code_blocks
+    assert_equal(
+      "```quarz\n# not a heading\n[a](02-types.md)\n```\n```rb\n```\n```text\n```\n",
+      body("# T\n```ruby\n# not a heading\n[a](02-types.md)\n```\n```rb\n```\n```ebnf\n```\n"),
+    )
+  end
+
+  def test_errors
+    assert_raise(Docs::Error) { convert("No heading.\n") }
+    assert_raise(Docs::Error) { convert("# T\n```ruby\nx = 1\n") }
+  end
+end

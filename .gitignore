@@ -1,0 +1,7 @@
+/public/
+# The quarz checkout the build reads the docs and the grammar from.
+/quarz
+# Made by scripts/import_docs.qz on every build.
+/content/docs/*
+!/content/docs/_index.md
+!/content/docs/_index.ja.md

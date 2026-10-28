@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{{ page.title }} · {{ config.title }}{% endblock title %}
+{% block content %}
+{%- set docs = get_section(path="docs/_index.md", lang=lang) %}
+<div class="doc">
+  <nav class="doc-nav" aria-label="{{ trans(key='nav_docs', lang=lang) }}">
+    <details>
+      <summary>{{ trans(key="nav_docs", lang=lang) }}</summary>
+      <ol>
+        {%- for p in docs.pages %}
+        <li{% if p.path == page.path %} aria-current="page"{% endif %}><a href="{{ p.permalink | safe }}">{{ p.title }}</a></li>
+        {%- endfor %}
+      </ol>
+    </details>
+  </nav>
+  <article class="prose">
+    <h1>{{ page.title }}</h1>
+    {{ page.content | safe }}
+    <p class="source"><a href="{{ page.extra.source }}">{{ trans(key="source", lang=lang) }}</a></p>
+  </article>
+</div>
+<nav class="pager">
+  {%- if page.lower %}
+  <a class="prev" href="{{ page.lower.permalink | safe }}">← {{ page.lower.title }}</a>
+  {%- else %}<span></span>{% endif %}
+  {%- if page.higher %}
+  <a class="next" href="{{ page.higher.permalink | safe }}">{{ page.higher.title }} →</a>
+  {%- endif %}
+</nav>
+{% endblock content %}

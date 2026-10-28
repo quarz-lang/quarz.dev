@@ -1,0 +1,91 @@
+# Build quarz.dev and publish it to GitHub Pages: on every push to main,
+# once a day (to pick up the language's docs from quarz's main), and by
+# hand. Pull requests only build, which checks the internal links and the
+# headings they point at (`zola build` fails on a broken one).
+name: Site
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "23 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time: a deployment in progress finishes, and the
+# newest run waits for it (the ones in between are skipped).
+concurrency:
+  group: pages-${{ github.event_name == 'pull_request' && github.ref || 'main' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  # The quarz commit the site is built from: its docs/, its TextMate
+  # grammar and its standard library's API reference.
+  # textmate-grammar until quarz-lang/quarz#88 (the grammar) is merged; then main.
+  QUARZ_REF: textmate-grammar
+  ZOLA_VERSION: v0.23.6
+  # The sha256 GitHub lists for the release's x86_64-unknown-linux-gnu asset.
+  ZOLA_SHA256: 8f5132b3522412d04e395e0b25f6d68613ad272a873e54a2b3ebf664873024a4
+
+jobs:
+  build:
+    name: Build the site
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          repository: quarz-lang/quarz
+          ref: ${{ env.QUARZ_REF }}
+          path: quarz
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: quarz
+      - name: Build quarz
+        run: cargo build --release --bin quarz --manifest-path quarz/Cargo.toml
+      - name: Check the standard library's docs
+        run: quarz/target/release/quarz doc --std --check
+      - name: Test the import
+        run: quarz/target/release/quarz test scripts/docs_test.qz
+      - name: Import the language's docs
+        run: quarz/target/release/quarz run scripts/import_docs.qz quarz "$(git -C quarz rev-parse HEAD)"
+      - name: Install Zola
+        run: |
+          mkdir -p "$RUNNER_TEMP/zola"
+          curl -sSfL -o "$RUNNER_TEMP/zola.tar.gz" \
+            "https://github.com/getzola/zola/releases/download/$ZOLA_VERSION/zola-$ZOLA_VERSION-x86_64-unknown-linux-gnu.tar.gz"
+          echo "$ZOLA_SHA256  $RUNNER_TEMP/zola.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/zola.tar.gz" -C "$RUNNER_TEMP/zola"
+          echo "$RUNNER_TEMP/zola" >> "$GITHUB_PATH"
+      - name: Build the site
+        run: zola build
+      - name: Generate the standard library's API reference
+        run: quarz/target/release/quarz doc --std --html -o public/std
+      - if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v6
+      - if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: public
+
+  deploy:
+    name: Deploy
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

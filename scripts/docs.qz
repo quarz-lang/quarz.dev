@@ -1,0 +1,140 @@
+# What scripts/import_docs.qz does to each of the language's documents,
+# apart so that scripts/docs_test.qz can test it (`quarz test
+# scripts/docs_test.qz`).
+module Docs
+  REPO = "https://github.com/quarz-lang/quarz"
+
+  DOC_NAME = /\A(\d\d)-([a-z0-9-]+)(\.ja)?\.md\z/
+  DOC_LINK = /\A(\d\d)-([a-z0-9-]+)(\.ja)?\.md(#.*)?\z/
+  # A link's `](target)`, or a code span, whose text is not a link.
+  LINK = /`[^`]*`|\]\(([^()\s]+)\)/
+  OTHER_LANGUAGE = /\A(日本語版|English): \[[^\]]*\]\([^)]*\)\s*\z/
+  FENCE = /\A(\s*)(```|~~~)(\S*)(.*)\z/
+  HEADING = /\A(\#{1,6}) +(.*?) *\z/
+  # Code block languages the site's highlighter does not know, and what
+  # it shows them as (an unknown one fails the build, catching a typo).
+  LANGUAGES = {"ruby" => "quarz", "ebnf" => "text"}
+
+  data Doc = (path: String, number: Int, slug: String, ja: Bool)
+
+  class Error < StandardError
+  end
+
+  # The document `docs/NN-name.md` (or `.ja.md`) at `path`, nil for any
+  # other file.
+  def self.doc(path: String) -> Doc?
+    m = File.basename(path).match(DOC_NAME)
+    return nil unless m
+    Doc.new(path, m[1].to_s.to_i, m[2].to_s, !m[3].nil?)
+  end
+
+  def self.toml_string(s: String) -> String
+    "\"" + s.gsub("\\", "\\\\").gsub("\"", "\\\"") + "\""
+  end
+
+  # The anchor GitHub gives a heading: the text as it shows (code spans,
+  # emphasis and links reduced to their text) in lower case, without
+  # punctuation and symbols other than `-` and `_`, spaces made `-`.
+  #
+  # ```
+  # Docs.anchor("1. Lexical structure")              # => "1-lexical-structure"
+  # Docs.anchor("4. Data types (`data`)")            # => "4-data-types-data"
+  # Docs.anchor("1. 字句")                           # => "1-字句"
+  # ```
+  def self.anchor(heading: String) -> String
+    text = heading.gsub(/\[([^\]]*)\]\([^)]*\)/, "\\1").gsub(/[`*]/, "")
+    text.downcase.gsub(/[^\p{L}\p{N}\p{M}\p{Pc}\- ]/, "").gsub(" ", "-")
+  end
+
+  # A link's target as the site writes it: another document as an internal
+  # link, a file of the repository as a GitHub URL, anything else (a URL,
+  # an anchor, text in parentheses after brackets) as it is.
+  def self.link_target(target: String, quarz_dir: String, commit: String) -> String
+    m = target.match(DOC_LINK)
+    if m
+      lang = m[3] ? ".ja" : ""
+      return "@/docs/#{m[2]}#{lang}.md#{m[4] || ""}"
+    end
+    return target if target.match?(/\A([a-z][a-z0-9+.-]*:|#|@\/)/)
+    # Relative to docs/: `../crates/x.rs` is crates/x.rs.
+    path = target.start_with?("../") ? target[3..] : "docs/#{target}"
+    file = path.sub(/#.*\z/, "")
+    return target unless File.exist?("#{quarz_dir}/#{file}")
+    "#{REPO}/blob/#{commit}/#{path}"
+  end
+
+  # The page the site makes of `doc`, whose text is `text`.
+  #
+  # ## Raises
+  #
+  # `Docs::Error` for a document without a `# ` heading or with an
+  # unterminated code block.
+  def self.convert(doc: Doc, text: String, quarz_dir: String, commit: String) -> String
+    title: String? = nil
+    body = Array::Builder[String].new
+    fence: String? = nil
+    skip_blank = false
+    # GitHub numbers a heading's anchor that an earlier one already has.
+    anchors: Hash[String, Int] = {}
+    text.lines(chomp: true).each do |line|
+      if skip_blank
+        skip_blank = false
+        next if line.strip.empty?
+      end
+      m = line.match(FENCE)
+      open_fence = fence
+      if open_fence
+        fence = nil if m && m[2] == open_fence && m[3].to_s.empty? && m[4].to_s.strip.empty?
+        body << line
+        next
+      end
+      if m
+        fence = m[2]
+        lang = m[3].to_s
+        body << "#{m[1]}#{m[2]}#{LANGUAGES[lang]? || lang}#{m[4]}"
+        next
+      end
+      if (h = line.match(HEADING))
+        text = h[2].to_s
+        base = anchor(text)
+        seen = anchors[base]? || 0
+        anchors = anchors.put(base, seen + 1)
+        id = seen == 0 ? base : "#{base}-#{seen}"
+        if title.nil? && h[1] == "#"
+          title = text
+          skip_blank = true
+        else
+          body << "#{h[1]} #{rewrite_links(text, quarz_dir, commit)} {##{id}}"
+        end
+        next
+      end
+      if line.match?(OTHER_LANGUAGE)
+        skip_blank = true
+        next
+      end
+      body << rewrite_links(line, quarz_dir, commit)
+    end
+    raise Error, "#{doc.path}: an unterminated code block" if fence
+    heading = title
+    raise Error, "#{doc.path}: no `# ` heading" unless heading
+    front = [
+      "+++",
+      "title = #{toml_string(heading)}",
+      "weight = #{doc.number}",
+      "slug = #{toml_string(doc.slug)}",
+      "",
+      "[extra]",
+      "source = #{toml_string("#{REPO}/blob/#{commit}/docs/#{File.basename(doc.path)}")}",
+      "+++",
+      "",
+    ]
+    (front + body.to_a).join("\n") + "\n"
+  end
+
+  def self.rewrite_links(line: String, quarz_dir: String, commit: String) -> String
+    line.gsub(LINK) do |all, md|
+      target = md[1]
+      target ? "](#{link_target(target, quarz_dir, commit)})" : all
+    end
+  end
+end

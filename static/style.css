@@ -1,0 +1,173 @@
+/* Quarz's site: no web fonts, no scripts; light and dark follow the
+   reader's system. */
+
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #1f2328;
+  --muted: #59636e;
+  --accent: #6639ba;
+  --accent-fg: #ffffff;
+  --border: #d1d9e0;
+  --code-bg: #f6f8fa;
+  --measure: 46rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --fg: #e6edf3;
+    --muted: #9198a1;
+    --accent: #b392f0;
+    --accent-fg: #0d1117;
+    --border: #3d444d;
+    --code-bg: #161b22;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Noto Sans CJK JP", "Yu Gothic UI", sans-serif;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+a { color: var(--accent); }
+
+code, pre, kbd {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 0.9em;
+}
+
+header.site, main, footer.site {
+  max-width: calc(var(--measure) + 2rem);
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+main { min-height: 60vh; }
+
+header.site { border-bottom: 1px solid var(--border); max-width: none; }
+header.site nav {
+  max-width: var(--measure);
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 1rem;
+  padding: 0.75rem 0;
+}
+header.site a { color: var(--fg); text-decoration: none; }
+header.site a:hover { color: var(--accent); }
+header.site .brand { font-weight: 700; font-size: 1.15rem; margin-right: auto; }
+header.site .lang { color: var(--muted); }
+
+footer.site {
+  margin-top: 4rem;
+  padding-bottom: 2rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.prose h1 { font-size: 2rem; line-height: 1.25; margin: 2rem 0 1rem; }
+.prose h2 { font-size: 1.4rem; margin: 2.5rem 0 0.75rem; padding-bottom: 0.25rem; border-bottom: 1px solid var(--border); }
+.prose h3 { font-size: 1.15rem; margin: 2rem 0 0.5rem; }
+.prose h1, .prose h2, .prose h3, .prose h4 { overflow-wrap: anywhere; }
+.prose p, .prose li { overflow-wrap: break-word; }
+.prose .zola-anchor { color: var(--muted); text-decoration: none; margin-left: -1.1em; padding-right: 0.25em; visibility: hidden; }
+.prose :is(h1, h2, h3, h4, h5, h6):hover .zola-anchor { visibility: visible; }
+
+.prose :not(pre) > code {
+  background: var(--code-bg);
+  padding: 0.1em 0.3em;
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+}
+
+.prose pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+  line-height: 1.45;
+}
+/* The highlighter's colors only: its background yields to the page's. */
+.prose pre.giallo { background: var(--code-bg) !important; }
+
+.giallo-l {
+  display: inline-block;
+  min-height: 1lh;
+  width: 100%;
+}
+.giallo-ln {
+  display: inline-block;
+  user-select: none;
+  margin-right: 0.4em;
+  padding: 0.4em;
+  min-width: 3ch;
+  text-align: right;
+  opacity: 0.8;
+}
+
+.prose table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+.prose th, .prose td {
+  border: 1px solid var(--border);
+  padding: 0.35rem 0.6rem;
+  vertical-align: top;
+  min-width: 6rem;
+}
+.prose th { background: var(--code-bg); text-align: left; }
+
+.prose blockquote { margin: 1rem 0; padding: 0 1rem; color: var(--muted); border-left: 3px solid var(--border); }
+.prose img { max-width: 100%; }
+
+.hero { padding: 2.5rem 0 1rem; }
+.hero h1 { font-size: 2.75rem; margin: 0; }
+.hero .tagline { font-size: 1.25rem; color: var(--muted); margin: 0.5rem 0 1.5rem; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.button {
+  display: inline-block;
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  text-decoration: none;
+  font-weight: 600;
+  border: 1px solid var(--accent);
+}
+.button.secondary { background: transparent; color: var(--accent); }
+
+.toc { padding-left: 1.5rem; }
+.toc li { margin: 0.25rem 0; }
+
+.doc-nav details { margin-top: 1.5rem; border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 1rem; }
+.doc-nav summary { cursor: pointer; color: var(--muted); }
+.doc-nav ol { margin: 0.5rem 0; padding-left: 1.5rem; }
+.doc-nav [aria-current] a { color: var(--fg); font-weight: 600; }
+
+.source { margin-top: 3rem; font-size: 0.875rem; }
+
+.pager {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+.pager .next { margin-left: auto; text-align: right; }
+
+.posts { list-style: none; padding: 0; }
+.posts time { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 0.5rem; }
