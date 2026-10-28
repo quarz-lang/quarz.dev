@@ -49,14 +49,16 @@ What differs from Ruby here is in three places: types (`text: String`,
   collection stays linear (amortized O(1) per update). Builders give
   Ruby's mutable API where it is needed.
 - **Lightweight tasks.** `Task`s scheduled M:N like goroutines, typed
-  `Channel`s, structured concurrency (`Task.scope`) and `Atom`s holding
-  immutable values. The type system (`Shareable`) keeps mutable objects
-  from crossing tasks, so data races are ruled out at compile time.
-- **An interpreter and a compiler.** `quarz run` runs a program at once
-  and gives a REPL; `quarz build` compiles it to a native executable
-  through LLVM. Both share one intermediate representation and one
-  runtime, and give the same results: the test suite runs every example
-  and over a hundred test programs on both and compares their output.
+  `Channel`s, structured concurrency (`Task.scope`) and `Atom`s that share
+  immutable values between tasks. The type system (`Shareable`) keeps
+  mutable objects from crossing tasks, so data races are ruled out at
+  compile time.
+- **An interpreter and a compiler.** `quarz run` runs a program at once,
+  and `quarz repl` gives a REPL; `quarz build` compiles it to a native
+  executable through LLVM. Both share one intermediate representation
+  and one runtime, and give the same results: the test suite runs every
+  example and over a hundred test programs on both and compares their
+  output.
 
 ## Learn more
 

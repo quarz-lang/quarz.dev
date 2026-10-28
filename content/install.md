@@ -8,8 +8,8 @@ Quarz has no release yet: build it from source.
 ## Requirements
 
 - [Rust](https://www.rust-lang.org/tools/install) 1.96 or later, with Cargo.
-- clang 14 or later, for `quarz build` (compiled programs go through
-  LLVM IR). `quarz run` does not need it.
+- clang 14 or later, for `quarz build`, which writes LLVM IR and has
+  clang compile it. `quarz run` does not need it.
 - Linux on x86-64: CI runs there only, and other systems are untested.
 
 ## Build
