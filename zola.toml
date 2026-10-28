@@ -48,10 +48,10 @@ contents = "Contents"
 
 [languages.ja]
 title = "Quarz"
-description = "Ruby のような書き心地で、静的型付け・不変性・並行性の上に築かれたプログラミング言語。"
+description = "Ruby のような書き心地と、静的型付け・不変性・並行性を備えたプログラミング言語。"
 
 [languages.ja.translations]
-description = "Ruby のような書き心地で、静的型付け・不変性・並行性の上に築かれたプログラミング言語。"
+description = "Ruby のような書き心地と、静的型付け・不変性・並行性を備えたプログラミング言語。"
 nav_docs = "ドキュメント"
 nav_install = "インストール"
 nav_std = "標準ライブラリ"
