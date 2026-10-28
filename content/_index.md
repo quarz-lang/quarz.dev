@@ -45,9 +45,9 @@ What differs from Ruby here is in three places: types (`text: String`,
   confined to a lexical scope.
 - **Immutable data by default.** `String`, `Array`, `Hash` and `Set` are
   immutable, and an update returns a new value; when the value has a
-  single reference it is updated in place, so a plain loop is about as
-  fast as one over a mutable array. Builders give Ruby's mutable API where
-  it is needed.
+  single reference it is updated in place, so a loop that updates a
+  collection stays linear (amortized O(1) per update). Builders give
+  Ruby's mutable API where it is needed.
 - **Lightweight tasks.** `Task`s scheduled M:N like goroutines, typed
   `Channel`s, structured concurrency (`Task.scope`) and `Atom`s holding
   immutable values. The type system (`Shareable`) keeps mutable objects
@@ -55,7 +55,8 @@ What differs from Ruby here is in three places: types (`text: String`,
 - **An interpreter and a compiler.** `quarz run` runs a program at once
   and gives a REPL; `quarz build` compiles it to a native executable
   through LLVM. Both share one intermediate representation and one
-  runtime, and behave the same; only the speed differs.
+  runtime, and give the same results: the test suite runs every example
+  and over a hundred test programs on both and compares their output.
 
 ## Learn more
 
