@@ -28,8 +28,8 @@ internal_level = "error"
 [slugify]
 paths = "on"
 taxonomies = "on"
-# The English headings' anchors are GitHub's (`1-lexical-structure`); the
-# Japanese ones are transliterated (`1-zi-ju`, GitHub's `1-字句`).
+# For the site's own pages: the imported docs' headings carry the anchors
+# GitHub gives them (`{#1-字句}`, scripts/docs.qz).
 anchors = "on"
 
 [extra]

@@ -82,6 +82,11 @@ footer.site {
 .prose p, .prose li { overflow-wrap: break-word; }
 .prose .zola-anchor { color: var(--muted); text-decoration: none; margin-left: -1.1em; padding-right: 0.25em; visibility: hidden; }
 .prose :is(h1, h2, h3, h4, h5, h6):hover .zola-anchor { visibility: visible; }
+/* Touch screens cannot hover: show the anchor, at the heading's right,
+   since a phone's gutter has no room for it on the left. */
+@media (hover: none) {
+  .prose .zola-anchor { visibility: visible; float: right; margin: 0 0 0 0.5em; padding: 0; }
+}
 
 .prose :not(pre) > code {
   background: var(--code-bg);

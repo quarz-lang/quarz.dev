@@ -25,6 +25,12 @@ class AnchorTest < Test::Case
 
   def test_keeps_underscores_and_link_text
     assert_equal("attr_reader-and-friends", Docs.anchor("`attr_reader` and [friends](01-syntax.md)"))
+    assert_equal("_private", Docs.anchor("`_private`"))
+  end
+
+  def test_emphasis
+    assert_equal("emph-and-strong-snake_case", Docs.anchor("_Emph_ and __strong__ snake_case"))
+    assert_equal("a-b", Docs.anchor("*a* **b**"))
   end
 end
 
@@ -35,16 +41,17 @@ class ConvertTest < Test::Case
     Docs.convert(@doc, text, ".", "abc")
   end
 
-  # The page after its front matter and the blank line that follows it.
+  # The page after its front matter, the blank line that follows it and
+  # the title's anchor.
   def body(text: String) -> String
-    (convert(text).split("+++\n", 3)[2]? || "").delete_prefix("\n")
+    (convert(text).split("+++\n", 3)[2]? || "").sub(/\A\n(<span id="[^"]*"><\/span>\n\n)?/, "")
   end
 
   def test_front_matter
     page = convert("# Syntax: `def`\n\n日本語版: [01-syntax.ja.md](01-syntax.ja.md)\n\nText.\n")
     assert_equal(
-      "+++\ntitle = \"Syntax: `def`\"\nweight = 1\nslug = \"syntax\"\n\n[extra]\n" \
-      "source = \"https://github.com/quarz-lang/quarz/blob/abc/docs/01-syntax.md\"\n+++\n\nText.\n",
+      "+++\ntitle = \"Syntax: def\"\nweight = 1\nslug = \"syntax\"\n\n[extra]\n" \
+      "heading = \"Syntax: `def`\"\nsource = \"https://github.com/quarz-lang/quarz/blob/abc/docs/01-syntax.md\"\n+++\n\n<span id=\"syntax-def\"></span>\n\nText.\n",
       page,
     )
   end
@@ -70,8 +77,88 @@ class ConvertTest < Test::Case
     )
   end
 
+  def test_heading_forms
+    assert_equal(
+      "## Foo {#foo}\n## Bar {#bar}\n```\n#not\n```\n",
+      body("# T\n## Foo ##\n  ## Bar\n```\n#not\n```\n"),
+    )
+  end
+
+  def test_longer_fences
+    assert_equal(
+      "````quarz\n```\n## inside\n```\n````\n```quarz\nx\n`````\n## Out {#out}\n",
+      body("# T\n````ruby\n```\n## inside\n```\n````\n``` ruby\nx\n`````\n## Out\n"),
+    )
+  end
+
+  def test_link_forms
+    assert_equal(
+      "[a](@/docs/types.md \"Types\") [b](<@/docs/types.md>) [c](@/docs/types.md) [d](@/docs/types.ja.md)\n" \
+      "[ref]: @/docs/types.md#3-generics \"T\"\n``a`b`` [e](@/docs/types.md)\n",
+      body("# T\n[a](02-types.md \"Types\") [b](<02-types.md>) [c](./02-types.md) [d](../docs/02-types.ja.md)\n" \
+           "[ref]: 02-types.md#3-generics \"T\"\n``a`b`` [e](02-types.md)\n"),
+    )
+  end
+
+  def test_other_language_line_only_at_the_top
+    assert_equal(
+      "Text.\n\nEnglish: [a](01-syntax.md)\n",
+      body("# T\n\n日本語版: [x](01-syntax.ja.md)\n\nText.\n\nEnglish: [a](01-syntax.md)\n").gsub("@/docs/syntax.md", "01-syntax.md"),
+    )
+  end
+
+  def test_more_link_forms
+    assert_equal(
+      "[a](@/docs/types.md#x 't') [b](@/docs/types.md (t)) [r](https://github.com/quarz-lang/quarz/blob/abc/README.md)\n",
+      body("# T\n[a](02-types.md#x 't') [b](02-types.md (t)) [r](../README.md)\n"),
+    )
+  end
+
+  def test_title_links_and_anchor
+    page = convert("# See [types](02-types.md)\n## See types\n")
+    assert(page.include?("title = \"See types\"\n"))
+    assert(page.include?("heading = \"See [types](@/docs/types.md)\"\n"))
+    assert(page.include?("<span id=\"see-types\"></span>\n"))
+    assert(page.include?("## See types {#see-types-1}\n"))
+  end
+
+  def test_ids_are_unique
+    assert_equal(
+      "## A {#a}\n## A-1 {#a-1}\n## A {#a-2}\n## \n",
+      body("# T\n## A\n## A-1\n## A\n## ##\n"),
+    )
+  end
+
+  def test_backtick_in_info_string_is_not_a_fence
+    assert_equal("```ruby `x`\n## H {#h}\n", body("# T\n```ruby `x`\n## H\n"))
+  end
+
+  def test_links_with_code_in_their_text
+    assert_equal("attr_reader", Docs.anchor("[`attr_reader`](01-syntax.md)"))
+    assert_equal("Task scope", Docs.plain("[`Task`](04-concurrency.md) scope"))
+  end
+
+  def test_escapes_and_padded_code
+    assert_equal("Foo _bar_", Docs.plain("Foo \\_bar\\_"))
+    assert_equal("`a`", Docs.plain("`` `a` ``"))
+  end
+
+  def test_footnotes_and_list_fences
+    assert_equal(
+      "[^1]: See [x](@/docs/types.md).\n- ```quarz\n  ## in\n  ```\n## Out {#out}\n",
+      body("# T\n[^1]: See [x](02-types.md).\n- ```ruby\n  ## in\n  ```\n## Out\n"),
+    )
+  end
+
+  def test_title_without_a_name
+    page = convert("# !!!\n## A\n")
+    assert(page.include?("title = \"!!!\"\n"))
+    assert(page.include?("+++\n\n## A {#a}\n"))
+  end
+
   def test_errors
     assert_raise(Docs::Error) { convert("No heading.\n") }
+    assert_raise(Docs::Error) { convert("# \nText.\n") }
     assert_raise(Docs::Error) { convert("# T\n```ruby\nx = 1\n") }
   end
 end

@@ -14,7 +14,7 @@
     </details>
   </nav>
   <article class="prose">
-    <h1>{{ page.title }}</h1>
+    <h1>{{ page.extra.heading | default(value=page.title) | markdown(inline=true) | safe }}</h1>
     {{ page.content | safe }}
     <p class="source"><a href="{{ page.extra.source }}">{{ trans(key="source", lang=lang) }}</a></p>
   </article>

@@ -1,6 +1,7 @@
 # Build quarz.dev and publish it to GitHub Pages: on every push to main,
 # once a day (to pick up the language's docs from quarz's main), and by
-# hand. Pull requests only build, which checks the internal links and the
+# hand (deploying from main only). Pull requests, and runs started by hand
+# on other branches, only build, which checks the internal links and the
 # headings they point at (`zola build` fails on a broken one).
 name: Site
 
@@ -18,15 +19,14 @@ permissions:
 # One deployment at a time: a deployment in progress finishes, and the
 # newest run waits for it (the ones in between are skipped).
 concurrency:
-  group: pages-${{ github.event_name == 'pull_request' && github.ref || 'main' }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: pages-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   CARGO_TERM_COLOR: always
   # The quarz commit the site is built from: its docs/, its TextMate
   # grammar and its standard library's API reference.
-  # textmate-grammar until quarz-lang/quarz#88 (the grammar) is merged; then main.
-  QUARZ_REF: textmate-grammar
+  QUARZ_REF: main
   ZOLA_VERSION: v0.23.6
   # The sha256 GitHub lists for the release's x86_64-unknown-linux-gnu asset.
   ZOLA_SHA256: 8f5132b3522412d04e395e0b25f6d68613ad272a873e54a2b3ebf664873024a4
@@ -67,16 +67,14 @@ jobs:
         run: zola build
       - name: Generate the standard library's API reference
         run: quarz/target/release/quarz doc --std --html -o public/std
-      - if: github.event_name != 'pull_request'
-        uses: actions/configure-pages@v6
-      - if: github.event_name != 'pull_request'
+      - if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@v5
         with:
           path: public
 
   deploy:
     name: Deploy
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10

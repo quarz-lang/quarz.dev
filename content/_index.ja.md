@@ -30,9 +30,10 @@ total.map { |word, count| WordCount.new(word, count) }
      .each { |wc| puts "#{wc.word}: #{wc.count}" }
 ```
 
-Ruby との違いは 3 か所だけです。引数と戻り値の型(`text: String`、
-`-> Hash[String, Int]`)、`data` による不変のレコード、そしてタスク
-(`Task.scope`、`spawn`、`await`)。残りは Ruby そのものです。
+ここで Ruby と違うのは 3 か所です。型(`text: String`、
+`-> Hash[String, Int]`、`Comparable[WordCount]`)、`data` による不変の
+レコード、そしてタスク(`Task.scope`、`spawn`、`await`)。残りは Ruby
+そのものです。
 
 ## 特徴
 

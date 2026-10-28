@@ -3,14 +3,14 @@ title = "Install"
 template = "page.html"
 +++
 
-Quarz has no released version yet: build it from source.
+Quarz has no release yet: build it from source.
 
 ## Requirements
 
 - [Rust](https://www.rust-lang.org/tools/install) 1.96 or later, with Cargo.
 - clang 14 or later, for `quarz build` (compiled programs go through
   LLVM IR). `quarz run` does not need it.
-- It is developed and tested on Linux (x86-64).
+- Linux on x86-64: CI runs there only, and other systems are untested.
 
 ## Build
 

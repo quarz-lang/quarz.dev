@@ -3,14 +3,14 @@ title = "インストール"
 template = "page.html"
 +++
 
-Quarz にはまだリリースされた版がありません。ソースからビルドします。
+Quarz のリリースはまだありません。ソースからビルドします。
 
 ## 必要なもの
 
 - [Rust](https://www.rust-lang.org/ja/tools/install) 1.96 以降と Cargo。
 - clang 14 以降(`quarz build` に必要です。コンパイルしたプログラムは
   LLVM IR を通ります)。`quarz run` には要りません。
-- 開発とテストは Linux(x86-64)で行っています。
+- x86-64 の Linux。CI はこの環境だけで走り、ほかの OS は未検証です。
 
 ## ビルド
 

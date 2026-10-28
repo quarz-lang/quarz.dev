@@ -8,8 +8,8 @@
   <link rel="stylesheet" href="{{ get_url(path='style.css', cachebust=true) }}">
   <link rel="stylesheet" href="{{ get_url(path='giallo-light.css', cachebust=true) }}" media="(prefers-color-scheme: light)">
   <link rel="stylesheet" href="{{ get_url(path='giallo-dark.css', cachebust=true) }}" media="(prefers-color-scheme: dark)">
-  {%- set here = page | default(value=section) %}
-  {%- for t in here.translations %}
+  {%- if page %}{% set translations = page.translations %}{% elif section %}{% set translations = section.translations %}{% else %}{% set translations = [] %}{% endif %}
+  {%- for t in translations %}
   <link rel="alternate" hreflang="{{ t.lang }}" href="{{ t.permalink | safe }}">
   {%- endfor %}
 </head>
@@ -23,9 +23,12 @@
       <a href="/std/">{{ trans(key="nav_std", lang=lang) }}</a>
       <a href="{{ prefix }}/blog/">{{ trans(key="nav_blog", lang=lang) }}</a>
       <a href="{{ config.extra.github }}">GitHub</a>
-      {%- for t in here.translations %}{% if t.lang != lang %}
+      {%- for t in translations %}{% if t.lang != lang %}
       <a class="lang" hreflang="{{ t.lang }}" lang="{{ t.lang }}" href="{{ t.permalink | safe }}">{{ trans(key="other_language", lang=lang) }}</a>
       {%- endif %}{% endfor %}
+      {%- if translations | length == 0 %}
+      <a class="lang" hreflang="{% if lang == 'ja' %}en{% else %}ja{% endif %}" lang="{% if lang == 'ja' %}en{% else %}ja{% endif %}" href="{% if lang == 'ja' %}/{% else %}/ja/{% endif %}">{{ trans(key="other_language", lang=lang) }}</a>
+      {%- endif %}
     </nav>
   </header>
   <main>
