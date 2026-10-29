@@ -351,8 +351,6 @@ Later:
 - A module's `static def` used through `extend`, as a generic module
   whose parameter is the extending class (`module Macros[T <: Model]`,
   `extend Macros[Post]`).
-- A `Quoted` block's tree built once per call site rather than at each
-  call.
 - Reading files at compile time (`Meta.read_file`, for schemas), an
   order between the `static` statements of one cog decided on demand,
   generated nested types (`def_data`), `extend_type`, and an `inherited`
