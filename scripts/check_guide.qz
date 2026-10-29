@@ -7,11 +7,13 @@
 # run (`quarz run`, exit status 0); one marked ```quarz,check=test must
 # pass as a test file (`quarz test`), and one marked ```quarz,check=error
 # must be rejected by the type checker (`quarz check`), since it shows an
-# error. Blocks in other languages are not checked. QUARZ is the command
+# error, and one marked ```quarz,check=none is not checked at all (a
+# feature still being built; switch it to a checked block when the feature
+# lands). Blocks in other languages are not checked. QUARZ is the command
 # to check with (default: `quarz` on the PATH); the exit status is 1 when
 # a block fails, with the block's output.
 
-FENCE = /\A(`{3,}|~{3,})[ \t]*quarz(?:,[ \t]*check=(run|test|error))?[ \t]*\z/
+FENCE = /\A(`{3,}|~{3,})[ \t]*quarz(?:,[ \t]*check=(run|test|error|none))?[ \t]*\z/
 
 data Block = (file: String, line: Int, mode: String, code: String)
 
@@ -49,8 +51,13 @@ dir = "#{Dir.tmpdir}/quarz-guide-#{Process.pid}"
 Dir.mkdir_p(dir)
 failed = 0
 checked = 0
+skipped = 0
 Dir.glob("content/**/*.md").sort.each do |file|
   blocks_of(file).each_with_index do |block, n|
+    if block.mode == "none"
+      skipped += 1
+      next
+    end
     path = "#{dir}/#{File.basename(file, ".md")}-#{n + 1}.qz"
     File.write(path, block.code)
     out = case block.mode
@@ -68,5 +75,5 @@ Dir.glob("content/**/*.md").sort.each do |file|
   end
 end
 Dir.rm_rf(dir)
-puts "check_guide: #{checked} blocks, #{failed} failed"
+puts "check_guide: #{checked} blocks, #{failed} failed, #{skipped} not checked"
 exit 1 if failed > 0

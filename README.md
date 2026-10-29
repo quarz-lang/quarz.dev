@@ -37,7 +37,8 @@ quarz/target/release/quarz run scripts/check_guide.qz quarz/target/release/quarz
 ```
 
 A block is run by default; ```` ```quarz,check=test ```` runs it as a
-test file, and ```` ```quarz,check=error ```` expects the type checker
-to reject it.
+test file, ```` ```quarz,check=error ```` expects the type checker
+to reject it, and ```` ```quarz,check=none ```` skips the block (a
+sketch of a feature not in the language yet).
 
 The site uses no JavaScript, web fonts or analytics.

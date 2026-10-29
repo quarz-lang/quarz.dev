@@ -1,7 +1,7 @@
 +++
 title = "Tools"
 description = "Running, compiling, testing and documenting programs, and packaging them as cogs."
-weight = 5
+weight = 6
 +++
 
 One command, `quarz`, does everything. See [Install](@/install.md) for
