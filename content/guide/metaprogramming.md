@@ -1,6 +1,6 @@
 +++
 title = "Metaprogramming"
-description = "Compile-time metaprogramming: classes as values, static def, generated methods and fields, and quoted blocks."
+description = "Compile-time metaprogramming: classes as values, static def, generated methods and fields, quoted blocks and values computed while compiling."
 weight = 5
 +++
 
@@ -19,8 +19,9 @@ both through **compile-time execution of type-checked Quarz code**: no
 macros over untyped syntax, no code built from strings.
 
 Classes as values, `static def`, reflection, the generation of methods
-and fields, and blocks received as trees are in the language, and the
-tools show what was generated; the rest of the table comes later. The
+and fields, blocks received as trees, and values computed while
+compiling are in the language, and the tools show what was generated;
+macros kept in a module come later, with what "Not included" lists. The
 specification is
 [docs/14-metaprogramming.md](https://github.com/quarz-lang/quarz/blob/main/docs/14-metaprogramming.md).
 
@@ -33,7 +34,7 @@ specification is
 | Tools for generated members | `quarz doc` showing them, `quarz check --expand`, `static` statements in the REPL | Done |
 | A module's `static def` through `extend` | Macros kept in a module | Later (an error today) |
 | `Quoted[P]` blocks | A block as a type-checked expression tree | Done |
-| `static(expr)` and compile-time SQL | A query's SQL as a constant | Later (`static(...)` is reserved) |
+| `static(call)` | A `static def`'s call computed while compiling, its value put in the program | Done |
 
 ## Classes as values: `Type[T]`
 
@@ -331,6 +332,64 @@ keep { |x| (1..3).include?(x) }
   Shareable values: a query type that keeps such blocks, and is itself
   Shareable, can then be a constant.
 
+## Values computed while compiling: `static(call)`
+
+`static(call)` runs one call of a `static def` while the program is
+compiled and puts the value in the program where the expression is,
+anywhere an expression goes: in a method, at the top level, in a
+constant or a field's default. As with a `static` statement, the
+`static def` comes from a dependency (in a script, a required file), so
+the example is two files again:
+
+```quarz,file=tables
+# tables.qz
+module Tables
+  # The primes below `n`.
+  static def self.primes(n: Int) -> Array[Int]
+    (2...n).select { |i| (2...i).none? { |d| i % d == 0 } }
+  end
+end
+```
+
+```quarz
+require_relative "tables"
+
+PRIMES = static(Tables.primes(100))   # computed while compiling
+
+def prime?(n: Int) -> Bool = PRIMES.include?(n)
+
+p [PRIMES.size, prime?(97), prime?(91)]   # => [25, true, false]
+```
+
+- The receiver and positional arguments are constants: literals (and
+  arrays, hashes and ranges of them), constants, classes, enum values
+  and other `static(...)`; a chain is nested, `static(static(a).b)`. A
+  block given to the call may read constants but no variable, `self` or
+  field of the code around it.
+- The result must be a value that can be baked into the program, as a
+  generated method's captures are: a literal, a class, an enum variant,
+  `data`, and arrays, hashes and ranges of those. A procedure or an
+  object of an ordinary class is an error.
+- It runs under the same restrictions as a `static` statement, each time
+  the program is checked (by `check`, `run` or `build`); what it raises is an error at the expression, and what it
+  prints goes to the compiler's standard error.
+
+A variable as an argument, or a `static def` of the same file, is an
+error:
+
+```quarz,check=error
+require_relative "tables"
+
+n = 100
+small = static(Tables.primes(n))
+# error: `static(...)`'s receiver and arguments are constants: literals,
+# constants, classes and `static(...)`
+```
+
+A query's SQL computed while compiling is then up to the ORM: a
+`static def` that builds it from constant arguments can be called
+through `static(...)`, and the language adds nothing for SQL itself.
+
 ## Not included
 
 Decided against:
@@ -339,15 +398,12 @@ Decided against:
   assembled from strings: the class hierarchy stays fixed for the whole
   program, and everything that runs at compile time is checked code.
 - Constant-folding of arbitrary methods: only a `static def` runs at
-  compile time, from a `static` statement (or, later, `static(expr)`).
+  compile time, from a `static` statement or `static(...)`.
 - Generated fields without a default: `def_field` always takes one, so
   that every `initialize` stays complete.
 
 Later:
 
-- `static(expr)`, reserved: a `static def` called with constant
-  arguments at compile time, its result a constant of the program (a
-  query's SQL, say). Until then, a query is translated at run time.
 - A module's `static def` used through `extend`, as a generic module
   whose parameter is the extending class (`module Macros[T <: Model]`,
   `extend Macros[Post]`).
