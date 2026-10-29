@@ -4,8 +4,9 @@ description = "Compile-time metaprogramming, being built: class objects with typ
 weight = 5
 +++
 
-<!-- The code blocks on this page are marked check=none while the features
-     are being built; make them checked blocks as each feature lands. -->
+<!-- The code blocks on this page are sketches marked check=none while the
+     features are being built; as each feature lands, complete the example
+     (the ORM's own definitions are left out) and make it a checked block. -->
 
 Quarz defines everything statically: there is no reopening of classes,
 no `define_method`, `method_missing` or `eval`. Two things Ruby
@@ -17,13 +18,14 @@ code**: no macros over untyped syntax, no code built from strings.
 
 **This page describes work in progress.** None of it is in the language
 yet; the pieces are being implemented in the order of the table, and the
-code below is not checked by this site's CI until they land.
+code below is a sketch, leaving out the ORM's own definitions, and is not
+checked by this site's CI until they land.
 
 | Piece | What it gives | Status |
 |---|---|---|
-| `Type[T]` | A class as a value, with its type arguments | First pull request under review |
-| `static def` | Methods that run at compile time | Design settled, not started |
-| `Meta` and `static` statements in a class body | Generating typed methods from a library | Design settled, not started |
+| `Type[T]` | A class as a value, with its type arguments | In progress: the first pull request is being prepared |
+| `static def` | Methods that run at compile time | Decided; the implementation design is pending |
+| `Meta` and `static` statements in a class body | Generating typed methods from a library | Decided; the implementation design is pending |
 | `Quoted[P]` blocks | A block as a type-checked expression tree | Not started |
 | Compile-time SQL (`to_sql!`) | A query's SQL as a constant | Later |
 
@@ -53,8 +55,8 @@ puts describe(Array[Int])    # => Array (false)
 
 A `static def` is an ordinary method, type-checked and compiled like any
 other, that the compiler can also **call while compiling**. Its body
-must be pure: no IO, tasks, atoms or environment. A `raise` in it
-becomes a compile error pointing at the call.
+must be pure: no IO, tasks, atoms or environment. A `raise` while it runs
+at compile time becomes a compile error pointing at the call.
 
 ```quarz,check=none
 module Inflect
@@ -64,9 +66,9 @@ module Inflect
 end
 ```
 
-A `static def` that does not touch `Meta` (below) can be called at run
-time too, so pure helpers are written once. One that uses `Meta` exists
-only at compile time; calling it from ordinary code is a compile error.
+A `static def` can be called at run time too, so pure helpers are written
+once. One that uses the class builder `Meta::ClassDef` (below) exists only
+at compile time; calling it from ordinary code is a compile error.
 
 ## Generating methods: `Meta` and `static` statements
 
@@ -81,7 +83,7 @@ abstract class Model
   static def self.has_many[T <: Model](target: Type[T]) -> Void
     fk = target.field(:"#{name.downcase}_id") ||
          raise "#{target.name} has no foreign key to #{name}"
-    def_method(:"#{target.name.downcase}s") -> Relation[T] do
+    def_method(:"#{target.name.downcase}s") do      # Post#comments -> Relation[T]
       target.relation.where { col(fk) == id }
     end
   end
@@ -95,8 +97,10 @@ end
 ```
 
 The block given to `def_method` is checked where it is written, in the
-library, as a method of `T`; `has_many Comment` then installs it on
-`Post` with `target` and `fk` as constants. The generated method is an
+library, as a method of the class being defined (any `Model`);
+`has_many Comment` then installs it on `Post` with `target` and `fk` as
+constants. Reading another class's fields through a `Type[T]`, as
+`target.field` does, is planned for such compile-time code. The generated method is an
 ordinary one: typed, inlined and devirtualized like the rest, listed by
 `quarz doc` with a note saying which line generated it. Nothing is
 built from strings, and the library's names never leak into the
@@ -115,7 +119,9 @@ type error; the receiver then walks the tree, for example to build SQL.
 ```quarz,check=none
 data Relation[T <: Model](query: Query)
   def where(&cond: Quoted[Q[T].() -> Cond]) -> Relation[T]
-  def to_a -> Array[T]
+    Relation[T].new(query.and(cond.expr))     # keeps the tree, runs nothing
+  end
+  def to_a -> Array[T] = Db.current.run(query).map { |row| T.from_row(row) }
 end
 
 Post.relation.where { published && views > 1000 }.to_a
@@ -126,7 +132,8 @@ Post.relation.where { published && views > 1000 }.to_a
 no new grammar:
 
 ```quarz,check=none
-for p in Post.relation, c in p.comments when c.approved do [p.title, c.body] end
+for p in Post.relation when p.views > 1000 do p.title end
+# => Post.relation.filter { |p| p.views > 1000 }.map { |p| p.title }
 ```
 
 ## Not included
@@ -137,9 +144,9 @@ Decided against, or deferred until a need shows up:
   assembled from strings: the class hierarchy stays fixed for the whole
   program, and everything that runs at compile time is checked code.
 - Constant-folding of arbitrary pure methods. Only a `static def` called
-  on constants, with `!` (`PUBLISHED.to_sql!`), is evaluated at compile
-  time; a query whose shape is decided at run time is translated at run
-  time by the same code.
+  on constants, and asked to (`PUBLISHED.to_sql!`; the spelling is not
+  final), is evaluated at compile time; a query whose shape is decided at
+  run time is translated at run time by the same code.
 - `has_many :comments` by name: deriving a type from a symbol needs a
   quoting layer (`quote { }` and `${}` over `Meta::Expr`), which is
   deferred.
@@ -150,7 +157,7 @@ Decided against, or deferred until a need shows up:
 
 ## Further reading
 
-The design is being written up as `docs/14-metaprogramming.md` in the
+The design will be written up as `docs/14-metaprogramming.md` in the
 [repository's design documents](https://github.com/quarz-lang/quarz/tree/main/docs),
 next to [Syntax](https://github.com/quarz-lang/quarz/blob/main/docs/01-syntax.md),
 whose §3 and §7 state the rules this builds on.
