@@ -9,11 +9,17 @@
 # must be rejected by the type checker (`quarz check`), since it shows an
 # error, and one marked ```quarz,check=none is not checked at all (a
 # feature still being built; switch it to a checked block when the feature
-# lands). Blocks in other languages are not checked. QUARZ is the command
+# lands). One marked ```quarz,file=NAME is a library, not a program: it
+# must pass `quarz check`, and it is saved as NAME.qz next to the page's
+# other blocks, so that a later block of the same page can
+# `require_relative "NAME"` it (for a library an example needs as a file
+# of its own, as the `static def`s a class body calls are). A ```quarz
+# fence with any other option is an error, so a typo does not drop a
+# block. Blocks in other languages are not checked. QUARZ is the command
 # to check with (default: `quarz` on the PATH); the exit status is 1 when
 # a block fails, with the block's output.
 
-FENCE = /\A(`{3,}|~{3,})[ \t]*quarz(?:,[ \t]*check=(run|test|error|none))?[ \t]*\z/
+FENCE = /\A(`{3,}|~{3,})[ \t]*quarz(?:,[ \t]*(?:check=(run|test|error|none)|file=(\w+)))?[ \t]*\z/
 
 data Block = (file: String, line: Int, mode: String, code: String)
 
@@ -37,9 +43,12 @@ def blocks_of(file: String) -> Array[Block]
       next
     end
     m = text.match(FENCE)
-    next unless m
+    unless m
+      raise "#{file}:#{i + 1}: unknown code block options: #{text.strip}" if text.match(/\A(`{3,}|~{3,})[ \t]*quarz\b/)
+      next
+    end
     fence = m[1].to_s
-    mode = m[2] || "run"
+    mode = if lib = m[3] then "file:#{lib}" else m[2] || "run" end
     start = i + 1
   end
   raise "#{file}:#{start}: unterminated code block" if fence
@@ -52,19 +61,30 @@ Dir.mkdir_p(dir)
 failed = 0
 checked = 0
 skipped = 0
+saved = 0
 Dir.glob("content/**/*.md").sort.each do |file|
+  # A directory of the page's own: its `file=` blocks are found by the
+  # blocks after them, and no other page's.
+  page = "#{dir}/#{file.gsub("/", "-")}"
+  Dir.mkdir_p(page)
   blocks_of(file).each_with_index do |block, n|
     if block.mode == "none"
       skipped += 1
       next
     end
-    path = "#{dir}/#{File.basename(file, ".md")}-#{n + 1}.qz"
+    path = if block.mode.start_with?("file:")
+             "#{page}/#{block.mode.delete_prefix("file:")}.qz"
+           else
+             "#{page}/#{File.basename(file, ".md")}-#{n + 1}.qz"
+           end
     File.write(path, block.code)
     out = case block.mode
           in "test" then Process.run(quarz, "test", path)
           in "error" then Process.run(quarz, "check", path)
-          else Process.run(quarz, "run", path)
+          in "run" then Process.run(quarz, "run", path)
+          else Process.run(quarz, "check", path)
           end
+    saved += 1 if block.mode.start_with?("file:")
     ok = block.mode == "error" ? !out.success? : out.success?
     checked += 1
     next if ok
@@ -75,5 +95,5 @@ Dir.glob("content/**/*.md").sort.each do |file|
   end
 end
 Dir.rm_rf(dir)
-puts "check_guide: #{checked} blocks, #{failed} failed, #{skipped} not checked"
+puts "check_guide: #{checked} blocks (#{saved} of them libraries), #{failed} failed, #{skipped} not checked"
 exit 1 if failed > 0
