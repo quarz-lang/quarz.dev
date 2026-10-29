@@ -1,6 +1,6 @@
 +++
 title = "Metaprogramming"
-description = "Compile-time metaprogramming: classes as values, static def, generated methods and fields, and (being built) quoted blocks."
+description = "Compile-time metaprogramming: classes as values, static def, generated methods and fields, and quoted blocks."
 weight = 5
 +++
 
@@ -8,8 +8,7 @@ weight = 5
      is the specification). A block for a feature that has landed is a
      checked block; the generation example needs two files (the staging
      rule: a `static def` runs only from a file that requires it), so its
-     library is a file=orm block that the application requires. Blocks for
-     features not built yet are sketches, check=none, until they land. -->
+     library is a file=orm block that the application requires. -->
 
 Quarz defines everything statically: there is no reopening of classes,
 no `define_method`, `method_missing` or `eval`. Two things Ruby
@@ -19,10 +18,9 @@ query DSL reads a block as a query rather than running it. Quarz gets
 both through **compile-time execution of type-checked Quarz code**: no
 macros over untyped syntax, no code built from strings.
 
-**This page describes work in progress.** Classes as values,
-`static def`, reflection and the generation of methods and fields are in
-the language, and the tools show what was generated; the rest is being
-built in the order of the table. The
+Classes as values, `static def`, reflection, the generation of methods
+and fields, and blocks received as trees are in the language, and the
+tools show what was generated; the rest of the table comes later. The
 specification is
 [docs/14-metaprogramming.md](https://github.com/quarz-lang/quarz/blob/main/docs/14-metaprogramming.md).
 
@@ -34,7 +32,7 @@ specification is
 | `def_method`, `def_class_method`, `def_field`, `doc` | Generating typed methods and fields | Done |
 | Tools for generated members | `quarz doc` showing them, `quarz check --expand`, `static` statements in the REPL | Done |
 | A module's `static def` through `extend` | Macros kept in a module | Later (an error today) |
-| `Quoted[P]` blocks | A block as a type-checked expression tree | In progress |
+| `Quoted[P]` blocks | A block as a type-checked expression tree | Done |
 | `static(expr)` and compile-time SQL | A query's SQL as a constant | Later (`static(...)` is reserved) |
 
 ## Classes as values: `Type[T]`
@@ -202,51 +200,163 @@ generic module whose parameter is the extending class
 
 ## Blocks as expression trees: `Quoted[P]`
 
-This part is being built; the code below is a sketch. A block parameter
-typed `Quoted[P]` receives the block as a
-**type-checked expression tree** (`Meta::Expr`) instead of a closure.
-The block is first checked as an ordinary `P`, so `views > "x"` is a
-type error; the receiver then walks the tree, for example to build SQL.
+A block parameter typed `Quoted[P]`, `P` a procedure type, receives the
+block written at the call as a **type-checked expression tree**
+(`Meta::Expr`) as well as a closure. The block is checked as an ordinary
+`P`, so `views > "x"` is a type error; the method then walks the tree,
+for example to build SQL, and can still run the block with `proc`. A
+`Quoted` has:
 
-```quarz,check=none
-data Relation[T <: Model](query: Query)
-  def where(&cond: Quoted[Q[T].() -> Cond]) -> Relation[T]
-    Relation[T].new(query.and(cond.expr))     # keeps the tree, runs nothing
+- `expr`, the block as a `Meta::Expr::Block` of its parameters and
+  statements. Its nodes are literals and constants whose values are
+  literals (`Lit`); anything else read from outside the block, fields
+  and other constants included (`Capture`); the block's parameters
+  (`Arg`); the block's `self` when `P` has a receiver (`SelfRef`;
+  without one, `self` is a `Capture`); calls of the methods the checker
+  chose (`Call`, with a `Meta::MethodRef` naming the method); `And`,
+  `Or`, `Not`; `If` (for `if`, `unless` and `?:`); array and hash
+  literals; interpolated strings; and nested blocks (`&:name` becomes
+  one). Each node has its `line`;
+- `captures`, the values the `Capture` nodes stand for;
+- `proc`, the block as a closure, and `file`, where it is written.
+
+A small `Relation` that turns its blocks into SQL, and filters an array
+with the same blocks:
+
+```quarz
+data Post = (title: String, views: Int, published: Bool)
+
+# SQL for a block's tree: a call with no arguments reads a column (of
+# `self` or of the block's parameter), and a captured value is a literal.
+def to_sql(e: Meta::Expr, captures: Array[Object]) -> String
+  case e
+  in Meta::Expr::Block(body: body) then to_sql(body[0], captures)
+  in Meta::Expr::Lit(value: v) then v.inspect
+  in Meta::Expr::Capture(index: i) then captures[i].inspect
+  in Meta::Expr::Call(recv: r, method: m, args: args)
+    if r && !args.empty?
+      op = m.name == :== ? "=" : m.name.to_s
+      "#{to_sql(r, captures)} #{op} #{to_sql(args[0], captures)}"
+    else
+      m.name.to_s
+    end
+  in Meta::Expr::And(left: l, right: r)
+    "(#{to_sql(l, captures)} AND #{to_sql(r, captures)})"
+  in Meta::Expr::Or(left: l, right: r)
+    "(#{to_sql(l, captures)} OR #{to_sql(r, captures)})"
+  in Meta::Expr::Not(operand: o) then "NOT #{to_sql(o, captures)}"
+  else raise "line #{e.line}: no SQL for this"
   end
-  def to_a -> Array[T] = Db.current.run(query).map { |row| T.from_row(row) }
 end
 
-Post.relation.where { published && views > 1000 }.to_a
+data Selection = (sql: String, values: Array[String])
+
+class Relation
+  @rows: Array[Post]
+  @conds: Array[String]
+
+  def initialize(@rows: Array[Post], @conds: Array[String] = []); end
+
+  # The tree gives the SQL; `proc`, the block as a closure, filters the
+  # rows in memory.
+  def where(&cond: Quoted[Post.() -> Bool]) -> Relation
+    rows = @rows.select { |p| p.instance_exec(&cond.proc) }
+    Relation.new(rows, @conds + [to_sql(cond.expr, cond.captures)])
+  end
+
+  def filter(&cond: Quoted[(Post) -> Bool]) -> Relation
+    rows = @rows.select { |p| cond.proc.call(p) }
+    Relation.new(rows, @conds + [to_sql(cond.expr, cond.captures)])
+  end
+
+  def map(&f: Quoted[(Post) -> String]) -> Selection
+    column = to_sql(f.expr, f.captures)
+    Selection.new("SELECT #{column} FROM posts#{where_sql}",
+                  @rows.map { |p| f.proc.call(p) })
+  end
+
+  def sql -> String = "SELECT * FROM posts#{where_sql}"
+  def to_a -> Array[Post] = @rows
+
+  private def where_sql -> String =
+    @conds.empty? ? "" : " WHERE #{@conds.join(" AND ")}"
+end
+
+posts = Relation.new([
+  Post.new("Hello", 1500, true),
+  Post.new("Draft", 3000, false),
+  Post.new("Notes", 20, true),
+])
+min = 1000
+popular = posts.where { published && views > min }
+puts popular.sql
+# => SELECT * FROM posts WHERE (published AND views > 1000)
+p popular.to_a.map(&:title)     # => ["Hello"]
+
+# A for comprehension is calls of filter and map with blocks, so it is a
+# query too, with no new grammar.
+s = for p in posts when p.views > min do p.title end
+puts s.sql     # => SELECT title FROM posts WHERE views > 1000
+p s.values     # => ["Hello", "Draft"]
 ```
 
-`for` comprehensions desugar to `flat_map`/`filter`/`map`, so a
-`Relation` that takes those as `Quoted` blocks gives a query syntax with
-no new grammar:
+In `where`, the block's type has a receiver (`Post.() -> Bool`), so
+`published` is a call on the block's `self`; `min` is a `Capture`, read
+when `where` is called.
 
-```quarz,check=none
-for p in Post.relation when p.views > 1000 do p.title end
-# => Post.relation.filter { |p| p.views > 1000 }.map { |p| p.title }
+- A quoted block **captures by value at the call**: after
+  `n = 1; q = r.where { |x| x == n }; n = 2`, the tree's capture is `1`,
+  and `q.proc` sees `1` too.
+- Only a block literal makes a `Quoted`: passing a procedure (`&f`) or
+  `&:name` for such a parameter is an error; `&q` passes a `Quoted` on
+  to another `Quoted` parameter, and `&q.proc` its closure to a
+  procedure one.
+  Inside the method the parameter is an ordinary value: `yield` to it is
+  an error, and `cond.proc.call(...)` runs it.
+- What the tree holds is all a quoted block may contain (with `for`
+  comprehensions, which are calls). Anything else (assignments, loops,
+  `case`, `return`, `raise`, ranges, keyword and splat arguments,
+  lambdas...) is an error at its node:
+
+```quarz,check=error
+def keep(&cond: Quoted[(Int) -> Bool]) -> Bool = cond.proc.call(1)
+
+keep { |x| (1..3).include?(x) }
+# error: a range cannot be quoted: a block given as a `Quoted` holds
+# literals, variables, `self`, calls, `&&`, `||`, `!`, `if` and blocks
 ```
+
+- `Quoted[P]` is Shareable when `P` is a `shareable` procedure type
+  (`&cond: Quoted[shareable Post.() -> Bool]`), whose block captures only
+  Shareable values: a query type that keeps such blocks, and is itself
+  Shareable, can then be a constant.
 
 ## Not included
 
-Decided against, or deferred until a need shows up:
+Decided against:
 
 - Classes built at run time, macros over untyped syntax, and code
   assembled from strings: the class hierarchy stays fixed for the whole
   program, and everything that runs at compile time is checked code.
-- Constant-folding of arbitrary pure methods. Only a `static def` called
-  on constants, and asked to (`static(expr)`, reserved and not built yet),
-  will be evaluated at compile time; a query whose shape is decided at run
-  time is translated at run time by the same code.
-- `has_many :comments` by name: deriving a type from a symbol needs a
-  quoting layer (`quote { }` and `${}` over `Meta::Expr`), which is
-  deferred.
+- Constant-folding of arbitrary methods: only a `static def` runs at
+  compile time, from a `static` statement (or, later, `static(expr)`).
 - Generated fields without a default: `def_field` always takes one, so
   that every `initialize` stays complete.
-- Reading files at compile time (schemas), compile-time hooks such as
-  `inherited`, and generated nested types (`def_data`): later, if a need
-  shows up.
+
+Later:
+
+- `static(expr)`, reserved: a `static def` called with constant
+  arguments at compile time, its result a constant of the program (a
+  query's SQL, say). Until then, a query is translated at run time.
+- A module's `static def` used through `extend`, as a generic module
+  whose parameter is the extending class (`module Macros[T <: Model]`,
+  `extend Macros[Post]`).
+- A `Quoted` block's tree built once per call site rather than at each
+  call.
+- Reading files at compile time (`Meta.read_file`, for schemas), an
+  order between the `static` statements of one cog decided on demand,
+  generated nested types (`def_data`), `extend_type`, and an `inherited`
+  hook.
 
 ## Further reading
 
