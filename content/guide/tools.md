@@ -71,7 +71,7 @@ A comment written directly above a declaration is its documentation, in
 Markdown. A code block in it is an example that `quarz test` compiles
 and runs, so examples cannot go stale. `quarz doc Array#push` prints a
 name's documentation in the terminal, and `quarz doc --html` generates
-a site like [the standard library's](/std/).
+a site like [the standard library's](https://api.quarz.dev/).
 
 ## Cogs
 

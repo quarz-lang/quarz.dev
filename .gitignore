@@ -1,4 +1,4 @@
 /public/
-# The quarz checkout the build reads the grammar and the standard
-# library's docs from.
+# The quarz checkout the build reads the grammar from, whose `quarz`
+# runs the Guide's examples.
 /quarz
