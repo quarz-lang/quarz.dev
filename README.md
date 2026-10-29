@@ -42,6 +42,12 @@ quarz/target/release/quarz run scripts/check_guide.qz quarz/target/release/quarz
 A block is run by default; ```` ```quarz,check=test ```` runs it as a
 test file, ```` ```quarz,check=error ```` expects the type checker
 to reject it, and ```` ```quarz,check=none ```` skips the block (a
-sketch of a feature not in the language yet).
+sketch of a feature not in the language yet). A block marked
+```` ```quarz,file=NAME ```` is a library rather than a program: it must
+pass `quarz check`, and it is saved as `NAME.qz` so that the page's
+later blocks can `require_relative "NAME"` it. That is how an example
+shows a library in a file of its own, which the `static def`s a class
+body calls have to be. Any other option on a ```` ```quarz ```` fence
+is an error.
 
 The site uses no JavaScript, web fonts or analytics.

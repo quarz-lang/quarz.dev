@@ -6,11 +6,10 @@ weight = 5
 
 <!-- Kept in step with quarz-lang/quarz's main (docs/14-metaprogramming.md
      is the specification). A block for a feature that has landed is a
-     checked block; the generation examples need two files (the staging
-     rule: a `static def` runs only from a file that requires it), which
-     scripts/check_guide.qz cannot express, so they stay check=none and
-     were run by hand against main. Blocks for features not built yet are
-     sketches, check=none, until they land. -->
+     checked block; the generation example needs two files (the staging
+     rule: a `static def` runs only from a file that requires it), so its
+     library is a file=orm block that the application requires. Blocks for
+     features not built yet are sketches, check=none, until they land. -->
 
 Quarz defines everything statically: there is no reopening of classes,
 no `define_method`, `method_missing` or `eval`. Two things Ruby
@@ -100,7 +99,7 @@ name, `==`, `<=` and the class's class methods) that can also read the class's
 fields and method signatures (`fields`, `field`, `methods`, `method?`,
 `includes?`) and generate members of it.
 
-```quarz,check=none
+```quarz,file=orm
 # orm.qz, the library: a cog the application depends on, or a file it
 # requires
 abstract class Model
@@ -124,7 +123,7 @@ abstract class Model
 end
 ```
 
-```quarz,check=none
+```quarz
 # The application
 require_relative "orm"
 
