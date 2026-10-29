@@ -1,9 +1,11 @@
 # Build quarz.dev and publish it to GitHub Pages: on every push to main,
-# once a day (to pick up the standard library's docs from quarz's main,
-# and to check the Guide's examples against it) and by hand (deploying
-# from main only). Pull requests, and runs started by hand on other
-# branches, only build, which checks the internal links and the headings
-# they point at (`zola build` fails on a broken one) and the examples.
+# once a week (to check the Guide's examples against quarz's main, so a
+# change to the language that leaves them behind is noticed) and by hand
+# (deploying from main only). The standard library's API reference is
+# published by quarz itself, at https://api.quarz.dev/. Pull requests,
+# and runs started by hand on other branches, only build, which checks
+# the internal links and the headings they point at (`zola build` fails
+# on a broken one) and the examples.
 name: Site
 
 on:
@@ -11,7 +13,7 @@ on:
     branches: [main]
   pull_request:
   schedule:
-    - cron: "23 4 * * *"
+    - cron: "23 4 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -25,8 +27,8 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  # The quarz commit the site is built from: its TextMate grammar and its
-  # standard library's API reference.
+  # The quarz commit the site is built from: its TextMate grammar, and
+  # the `quarz` that runs the Guide's examples.
   QUARZ_REF: main
   ZOLA_VERSION: v0.23.6
   # The sha256 GitHub lists for the release's x86_64-unknown-linux-gnu asset.
@@ -50,10 +52,8 @@ jobs:
           workspaces: quarz
       - name: Build quarz
         run: cargo build --release --bin quarz --manifest-path quarz/Cargo.toml
-      - name: Check the standard library's docs
-        run: quarz/target/release/quarz doc --std --check
       # The Guide's code blocks are programs: a change to the language
-      # that leaves them behind fails this step, daily too.
+      # that leaves them behind fails this step, weekly too.
       - name: Check the Guide's examples
         run: quarz/target/release/quarz run scripts/check_guide.qz quarz/target/release/quarz
       - name: Install Zola
@@ -66,8 +66,6 @@ jobs:
           echo "$RUNNER_TEMP/zola" >> "$GITHUB_PATH"
       - name: Build the site
         run: zola build
-      - name: Generate the standard library's API reference
-        run: quarz/target/release/quarz doc --std --html -o public/std
       - if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@v5
         with:

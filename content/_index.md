@@ -65,5 +65,5 @@ immutable records with `data`, and tasks (`Task.scope`, `spawn`,
 
 - [Install](@/install.md) Quarz from source.
 - Read the [guide](@/guide/_index.md): the language in six short pages.
-- Browse the [standard library's API reference](/std/).
+- Browse the [standard library's API reference](https://api.quarz.dev/).
 - Follow the development on [GitHub](https://github.com/quarz-lang/quarz).
