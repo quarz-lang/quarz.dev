@@ -8,7 +8,9 @@ weight = 5
      is the specification). A block for a feature that has landed is a
      checked block; the generation example needs two files (the staging
      rule: a `static def` runs only from a file that requires it), so its
-     library is a file=orm block that the application requires. -->
+     library is a file=orm block that the application requires, and the
+     module macros and static(call) examples have libraries of their own
+     (file=macros, file=tables). -->
 
 Quarz defines everything statically: there is no reopening of classes,
 no `define_method`, `method_missing` or `eval`. Two things Ruby
@@ -18,23 +20,20 @@ query DSL reads a block as a query rather than running it. Quarz gets
 both through **compile-time execution of type-checked Quarz code**: no
 macros over untyped syntax, no code built from strings.
 
-Classes as values, `static def`, reflection, the generation of methods
-and fields, blocks received as trees, and values computed while
-compiling are in the language, and the tools show what was generated;
-macros kept in a module come later, with what "Not included" lists. The
-specification is
+The table lists the pieces, each described below; the specification
+is
 [docs/14-metaprogramming.md](https://github.com/quarz-lang/quarz/blob/main/docs/14-metaprogramming.md).
 
-| Piece | What it gives | Status |
-|---|---|---|
-| `Type[T]` | A class as a value, with its type arguments | Done |
-| `static def` | Methods that run at compile time | Done |
-| `static` statements and `Meta` reflection | A class body's call of a library's `static def`, which reads the class's fields and methods | Done |
-| `def_method`, `def_class_method`, `def_field`, `doc` | Generating typed methods and fields | Done |
-| Tools for generated members | `quarz doc` showing them, `quarz check --expand`, `static` statements in the REPL | Done |
-| A module's `static def` through `extend` | Macros kept in a module | Later (an error today) |
-| `Quoted[P]` blocks | A block as a type-checked expression tree | Done |
-| `static(call)` | A `static def`'s call computed while compiling, its value put in the program | Done |
+| Piece | What it gives |
+|---|---|
+| `Type[T]` | A class as a value, with its type arguments |
+| `static def` | Methods that run at compile time |
+| `static` statements and `Meta` reflection | A class body's call of a library's `static def`, which reads the class's fields and methods |
+| `def_method`, `def_class_method`, `def_field`, `doc` | Generating typed methods and fields |
+| Tools for generated members | `quarz doc` showing them, `quarz check --expand`, `static` statements in the REPL |
+| A generic module's `static def`s through `extend` | Macros kept in a module |
+| `Quoted[P]` blocks | A block as a type-checked expression tree |
+| `static(call)` | A `static def`'s call computed while compiling, its value put in the program |
 
 ## Classes as values: `Type[T]`
 
@@ -194,10 +193,61 @@ p post.views             # => 1
 Staging is by package: a `static` statement calls only a `static def` of
 a cog its cog depends on, of the standard library, or, in a script, of a
 file it requires; one of its own cog (or, in a script, of its own file)
-is an error, as with Rust's procedural macros. A module's `static def`
-reached through `extend` is refused for now: the planned form is a
-generic module whose parameter is the extending class
-(`module Macros[T <: Model]` with `extend Macros[Post]`).
+is an error, as with Rust's procedural macros.
+
+### Macros in a module
+
+A library can keep its macros in a module rather than in a base class.
+The module is generic, its first type parameter the class that extends
+it, and the class extends it with itself:
+
+```quarz,file=macros
+# macros.qz, a second library file
+require_relative "orm"
+
+module Macros[T <: Model]
+  # `self` is the `Meta::ClassDef[T]` of the class extending the module;
+  # `T` is a `Model` by the bound, so the generated method (whose `self`
+  # is a `T`) can call `id`.
+  static def table(table: String) -> Void
+    def_class_method(:table_name) { table }
+    def_method(:find_sql) { "SELECT * FROM #{table} WHERE id = #{id}" }
+  end
+end
+```
+
+```quarz
+require_relative "macros"
+
+class Post < Model
+  extend Macros[Post]
+  table "articles"
+end
+
+puts Post.table_name          # => articles
+puts Post.new(3).find_sql     # => SELECT * FROM articles WHERE id = 3
+```
+
+A module's `static def` is an instance method of the module and a class
+method of the class that extends it, and it is checked under the
+module's bounds (`T <: Model`). So such a module is extended, never
+included, and only with the extending class itself: in `class Box[E]`,
+`extend Macros[Box[E]]`, neither `Box[Int]` nor a subclass. A subclass of
+`Post` can call `table` too, as it calls its superclasses' class
+methods. A module without type parameters cannot provide `static def`s
+to a class body; the error says what to write instead.
+
+```quarz,check=error
+require_relative "macros"
+
+class Post < Model; end
+
+class Comment < Model
+  extend Macros[Post]
+end
+# error: `Macros` has `static def`s, which run on the class extending it:
+# extend it as `Macros[Comment]`
+```
 
 ## Blocks as expression trees: `Quoted[P]`
 
@@ -404,9 +454,6 @@ Decided against:
 
 Later:
 
-- A module's `static def` used through `extend`, as a generic module
-  whose parameter is the extending class (`module Macros[T <: Model]`,
-  `extend Macros[Post]`).
 - Reading files at compile time (`Meta.read_file`, for schemas), an
   order between the `static` statements of one cog decided on demand,
   generated nested types (`def_data`), `extend_type`, and an `inherited`
