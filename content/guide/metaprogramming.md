@@ -111,7 +111,7 @@ abstract class Model
          raise "#{target.name} has no foreign key to #{name}"
     table = "#{target.name.downcase}s"
     doc "The SQL that finds this #{name}'s #{table}."
-    def_method("#{table}_sql".to_sym) do
+    def_method("#{table}_sql".to_sym) do -> String
       "SELECT * FROM #{table} WHERE #{fk.name} = #{id}"
     end
   end
@@ -147,9 +147,10 @@ p post.views             # => 1
   method of the class whose body is the block: its `self` is an instance
   of the class (here, any `Model`), and its parameters' and result's
   types come from the block (`def_method(:pair, [:x, :y]) { |x: Int, y:
-  String| ... }`; a block that only raises gives the result type
-  `Nothing`, so it can stand for any method, an abstract one's
-  implementation included). `def_class_method` makes a class method the
+  String| -> Bool ... }`). A result type written after the parameters is
+  the method's; without one it is inferred, and a block that only raises
+  gives the result type `Nothing`, so it can stand for any method, an
+  abstract one's implementation included. `def_class_method` makes a class method the
   same way, `doc` gives the next generated method its documentation, and
   `def_field(name, type, default)` adds a field with a default, made
   assignable by `var: true` and given accessors by `reader:` and
