@@ -4,8 +4,9 @@ description = "Where types are written, what is inferred, and how nil is handled
 weight = 2
 +++
 
-Quarz is statically typed, but types are written in one place: method
-signatures. Local variables are inferred from what is assigned to them.
+Quarz is statically typed, but types are written in declarations:
+method signatures and fields. Local variables are inferred from what is
+assigned to them.
 
 ```quarz
 def greet(name: String, times: Int = 1) -> String
@@ -19,7 +20,17 @@ puts greet(names[0], count)      # => Hello, ann! Hello, ann!
 
 Parameters, return types and fields carry types; a method without `->`
 returns `nil`. Blocks are typed from the method they are given to, so
-`{ |w| w.size }` needs no annotation.
+`{ |w| w.size }` needs no annotation. A block may still declare its
+parameters' types (`|w: String|`) and its result type, written after
+the parameters as a method's is and meaning the same: the block returns
+that type, and its value (and every `next` value) must fit it.
+
+```quarz
+words = ["ann", "bob", "cy"]
+sizes = words.map { |w| -> Int? w.size }   # Array[Int?], not Array[Int]
+sizes = sizes.push(nil)
+p sizes                                    # => [3, 3, 2, nil]
+```
 
 ## Nil
 
