@@ -9,8 +9,8 @@ weight = 5
      checked block; the generation example needs two files (the staging
      rule: a `static def` runs only from a file that requires it), so its
      library is a file=orm block that the application requires, and the
-     module macros and static(call) examples have libraries of their own
-     (file=macros, file=tables). -->
+     handles, module macros and static(call) examples have libraries of
+     their own (file=counters, file=macros, file=tables). -->
 
 Quarz defines everything statically: there is no reopening of classes,
 no `define_method`, `method_missing` or `eval`. Two things Ruby
@@ -30,6 +30,7 @@ is
 | `static def` | Methods that run at compile time |
 | `static` statements and `Meta` reflection | A class body's call of a library's `static def`, which reads the class's fields and methods |
 | `def_method`, `def_class_method`, `def_field`, `doc` | Generating typed methods and fields |
+| `field_ref`, `method_ref`, `class_method_ref` | Handles to a class's fields and methods, for generated methods |
 | Tools for generated members | `quarz doc` showing them, `quarz check --expand`, `static` statements in the REPL |
 | A generic module's `static def`s through `extend` | Macros kept in a module |
 | `Quoted[P]` blocks | A block as a type-checked expression tree |
@@ -161,7 +162,8 @@ p post.views             # => 1
   `static def` (`table`, `fk`) is computed at compile time and baked into
   the generated method as a constant: `nil`, booleans, numbers, strings,
   symbols, regexps, classes, enum variants, `data` values (a
-  `Meta::Field` is one), and arrays, hashes and ranges of these.
+  `Meta::Field` is one), field and method handles (below), and arrays,
+  hashes and ranges of these.
 - **An ordinary member.** The generated method is typed, inlined and
   compiled like a written one; it can implement an abstract method. A
   name the class already has is an error at the statement, and so are
@@ -195,6 +197,70 @@ Staging is by package: a `static` statement calls only a `static def` of
 a cog its cog depends on, of the standard library, or, in a script, of a
 file it requires; one of its own cog (or, in a script, of its own file)
 is an error, as with Rust's procedural macros.
+
+### Handles to fields and methods
+
+A generated method cannot name a field or a method the `static def` was
+given as a `Symbol`: there is no `@#{name}` and no call by a computed
+name. So `def_field` returns a handle to the field it adds, a
+`Meta::FieldRef`, and `def_method` a handle to the method it makes, a
+`Meta::Method`; `field_ref[U](name)` and `method_ref[P](name)` make one
+for a member of the class by name, of the exact type written (`P` is the
+method's procedure type, its parameters all positional);
+`def_class_method` and `class_method_ref[P]` do the same for the class's
+own class methods. The generated method's block uses them on
+`self`: `ref.get(self)` and `ref.set(self, value)` are the field's read
+and write themselves, and `handle.bind(self).call(...)` calls the
+method, dispatching as a call of it does.
+
+```quarz,file=counters
+# counters.qz, a library file
+abstract class Record
+  static def self.counter(field: Symbol) -> Void
+    ref = def_field(field, Int, 0, var: true, reader: true)
+    bump = def_method("bump_#{field}".to_sym) do -> Void
+      ref.set(self, ref.get(self) + 1)
+    end
+    def_method("bump_#{field}_twice".to_sym) do -> Void
+      bump.bind(self).call
+      bump.bind(self).call
+    end
+  end
+
+  static def self.define_fact -> Void
+    # A handle to the method being made: `def_method`'s own is
+    # assigned only after it returns.
+    fact = method_ref[(Int) -> Int](:fact)
+    def_method(:fact, :n) do |n: Int| -> Int
+      n <= 1 ? 1 : n * fact.bind(self).call(n - 1)
+    end
+  end
+end
+```
+
+```quarz
+require_relative "counters"
+
+class Page < Record
+  counter :views    # @views, Page#views, #bump_views, #bump_views_twice
+  define_fact       # Page#fact, which calls itself through its handle
+end
+
+page = Page.new
+page.bump_views
+page.bump_views_twice
+p page.views      # => 3
+p page.fact(5)    # => 120
+```
+
+A handle is checked when the statement has run, every generated member
+declared by then: a missing field or method, one of another type, a
+handle made for a class the class generated into does not inherit from,
+or `set` on a field that is not `var` is an error at the statement. For
+now, a handle is used only from the block that captures it, and on
+`self`; only these methods make one, and it shows its `name` and
+`owner` and nothing else. `P` cannot mention `Self`, and `bind` makes a
+bound procedure (an allocation) even when it is called at once.
 
 ### Macros in a module
 

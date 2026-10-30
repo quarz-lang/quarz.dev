@@ -13,13 +13,14 @@
 # must pass `quarz check`, and it is saved as NAME.qz next to the page's
 # other blocks, so that a later block of the same page can
 # `require_relative "NAME"` it (for a library an example needs as a file
-# of its own, as the `static def`s a class body calls are). A ```quarz
-# fence with any other option is an error, so a typo does not drop a
-# block. Blocks in other languages are not checked. QUARZ is the command
+# of its own, as the `static def`s a class body calls are). A fence may
+# be indented (in a list item). A ```quarz fence with any other option is
+# an error, so a typo does not drop a block. Blocks in other languages
+# are not checked. QUARZ is the command
 # to check with (default: `quarz` on the PATH); the exit status is 1 when
 # a block fails, with the block's output.
 
-FENCE = /\A(`{3,}|~{3,})[ \t]*quarz(?:,[ \t]*(?:check=(run|test|error|none)|file=(\w+)))?[ \t]*\z/
+FENCE = /\A[ \t]*(`{3,}|~{3,})[ \t]*quarz(?:,[ \t]*(?:check=(run|test|error|none)|file=(\w+)))?[ \t]*\z/
 
 data Block = (file: String, line: Int, mode: String, code: String)
 
@@ -27,6 +28,7 @@ def blocks_of(file: String) -> Array[Block]
   blocks = Array::Builder[Block].new
   code = Array::Builder[String].new
   fence: String? = nil
+  indent = ""
   mode = "run"
   start = 0
   File.read(file).lines(chomp: true).each_with_index do |text, i|
@@ -38,16 +40,18 @@ def blocks_of(file: String) -> Array[Block]
         code = Array::Builder[String].new
         fence = nil
       else
-        code << text
+        # (Without the fence's own indentation, in a list item.)
+        code << (text.start_with?(indent) ? text[indent.size..] : text)
       end
       next
     end
     m = text.match(FENCE)
     unless m
-      raise "#{file}:#{i + 1}: unknown code block options: #{text.strip}" if text.match(/\A(`{3,}|~{3,})[ \t]*quarz\b/)
+      raise "#{file}:#{i + 1}: unknown code block options: #{text.strip}" if text.match(/\A[ \t]*(`{3,}|~{3,})[ \t]*quarz\b/)
       next
     end
     fence = m[1].to_s
+    indent = text[0, text.index(fence[0]) || 0]
     mode = if lib = m[3] then "file:#{lib}" else m[2] || "run" end
     start = i + 1
   end
