@@ -107,7 +107,7 @@ abstract class Model
   def initialize(@id: Int); end
   def id -> Int = @id
 
-  static def self.has_many[T <: Model](target: Type[T]) -> Void
+  static def self.has_many[T <: Model](target: Type[T])
     fk = target.field("#{name.downcase}_id".to_sym) ||
          raise "#{target.name} has no foreign key to #{name}"
     table = "#{target.name.downcase}s"
@@ -117,7 +117,7 @@ abstract class Model
     end
   end
 
-  static def self.counter(field: Symbol) -> Void
+  static def self.counter(field: Symbol)
     def_field(field, Int, 0, var: true, reader: true)
   end
 end
@@ -216,7 +216,7 @@ method, dispatching as a call of it does.
 ```quarz,file=counters
 # counters.qz, a library file
 abstract class Record
-  static def self.counter(field: Symbol) -> Void
+  static def self.counter(field: Symbol)
     ref = def_field(field, Int, 0, var: true, reader: true)
     bump = def_method("bump_#{field}".to_sym) do -> Void
       ref.set(self, ref.get(self) + 1)
@@ -227,7 +227,7 @@ abstract class Record
     end
   end
 
-  static def self.define_fact -> Void
+  static def self.define_fact
     # A handle to the method being made: `def_method`'s own is
     # assigned only after it returns.
     fact = method_ref[(Int) -> Int](:fact)
@@ -276,7 +276,7 @@ module Macros[T <: Model]
   # `self` is the `Meta::ClassDef[T]` of the class extending the module;
   # `T` is a `Model` by the bound, so the generated method (whose `self`
   # is a `T`) can call `id`.
-  static def table(table: String) -> Void
+  static def table(table: String)
     def_class_method(:table_name) { table }
     def_method(:find_sql) { "SELECT * FROM #{table} WHERE id = #{id}" }
   end

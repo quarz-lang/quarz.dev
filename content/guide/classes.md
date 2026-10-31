@@ -22,7 +22,7 @@ class Account
 
   def initialize(@id: Int); end
 
-  def deposit(amount: Int) -> Void
+  def deposit(amount: Int)
     raise ArgumentError, "amount must be positive" unless amount > 0
     @balance += amount
   end
@@ -35,11 +35,12 @@ acct.deposit(50)
 puts acct                   # => account 1: 50
 ```
 
-Parameters and return types are written on methods; `-> Void` means the
-result is not used. `def initialize(@id: Int)` assigns the field from
-the parameter, and a one-line method is written with `=`. Everything
-else here (`attr_reader`, `raise ... unless`, `#{}` interpolation,
-`puts` calling `to_s`) is Ruby.
+Parameters and return types are written on methods; a method without
+a return type, like `deposit`, is `-> Void`: it returns nil.
+`def initialize(@id: Int)` assigns the field from the parameter, and a
+one-line method is written with `=`. Everything else here
+(`attr_reader`, `raise ... unless`, `#{}` interpolation, `puts` calling
+`to_s`) is Ruby.
 
 ## Data
 
