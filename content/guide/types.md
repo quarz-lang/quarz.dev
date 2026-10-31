@@ -32,6 +32,13 @@ sizes = sizes.push(nil)
 p sizes                                    # => [3, 3, 2, nil]
 ```
 
+A block that takes one argument can leave it unnamed: `it` is that
+argument, typed the same way.
+
+```quarz
+p [3, 1, 2].map { it * 10 }.select { it > 10 }   # => [30, 20]
+```
+
 ## Nil
 
 `nil` belongs to no other type. A value that may be missing has the
