@@ -45,6 +45,19 @@ Write `acc = acc.push(x)` rather than keeping the old value around; as
 long as nothing else refers to the collection, the update costs no more
 than it would on a mutable array.
 
+When the receiver has no method `push!`, `acc.push!(x)` is a shorthand
+for `acc = acc.push(x)`: the `!` rebinds the variable to the result.
+
+```quarz
+acc: Array[Int] = []
+acc.push!(1)
+acc.push!(2)
+puts acc.inspect     # => [1, 2]
+```
+
+Only the variable is rebound: anything else that refers to the old
+array still sees it unchanged.
+
 ## Builders
 
 For code that is naturally written with mutation, such as building a
