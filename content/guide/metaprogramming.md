@@ -302,7 +302,8 @@ it is checked under the module's bounds (`T <: Model`). A `static def`
 in a module that is not a `static def self.` is an error, and so is a
 module with macros included by a module or an `extension`. The module is
 included only with the including class itself: in `class Box[E]`,
-`include Macros[Box[E]]`, neither `Box[Int]` nor a subclass. A subclass of
+`include Macros[Box[E]]`, neither `Box[Int]` nor a subclass, and with
+arguments that meet the bounds of the module's type parameters. A subclass of
 `Post` can call `table` too, as it calls its superclasses' class
 methods. A module without type parameters has macros too: their `self` is
 a `Meta::ClassDef[Self]`, `Self` the class that includes the module.
