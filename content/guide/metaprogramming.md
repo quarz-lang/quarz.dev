@@ -32,7 +32,7 @@ is
 | `def_method`, `def_class_method`, `def_field`, `doc` | Generating typed methods and fields |
 | `field_ref`, `method_ref`, `class_method_ref` | Handles to a class's fields and methods, for generated methods |
 | Tools for generated members | `quarz doc` showing them, `quarz check --expand`, `static` statements in the REPL |
-| A generic module's `static def`s through `extend` | Macros kept in a module |
+| A module's `static def self.` macros through `include` | Macros kept in a module |
 | `Quoted[P]` blocks | A block as a type-checked expression tree |
 | `static(call)` | A `static def`'s call computed while compiling, its value put in the program |
 
@@ -265,18 +265,20 @@ bound procedure (an allocation) even when it is called at once.
 ### Macros in a module
 
 A library can keep its macros in a module rather than in a base class.
-The module is generic, its first type parameter the class that extends
-it, and the class extends it with itself:
+Its macros are `static def self.` methods, and a class that includes the
+module inherits them as class methods. The module is generic, its first
+type parameter the class that includes it, and the class includes it
+with itself:
 
 ```quarz,file=macros
 # macros.qz, a second library file
 require_relative "orm"
 
 module Macros[T <: Model]
-  # `self` is the `Meta::ClassDef[T]` of the class extending the module;
+  # `self` is the `Meta::ClassDef[T]` of the class including the module;
   # `T` is a `Model` by the bound, so the generated method (whose `self`
   # is a `T`) can call `id`.
-  static def table(table: String)
+  static def self.table(table: String)
     def_class_method(:table_name) { table }
     def_method(:find_sql) { "SELECT * FROM #{table} WHERE id = #{id}" }
   end
@@ -287,7 +289,7 @@ end
 require_relative "macros"
 
 class Post < Model
-  extend Macros[Post]
+  include Macros[Post]
   table "articles"
 end
 
@@ -295,14 +297,16 @@ puts Post.table_name          # => articles
 puts Post.new(3).find_sql     # => SELECT * FROM articles WHERE id = 3
 ```
 
-A module's `static def` is an instance method of the module and a class
-method of the class that extends it, and it is checked under the
-module's bounds (`T <: Model`). So such a module is extended, never
-included, and only with the extending class itself: in `class Box[E]`,
-`extend Macros[Box[E]]`, neither `Box[Int]` nor a subclass. A subclass of
+A module's macro is a class method of the classes that include it, and
+it is checked under the module's bounds (`T <: Model`). A `static def`
+in a module that is not a `static def self.` is an error, and so is a
+module with macros included by a module or an `extension`. The module is
+included only with the including class itself: in `class Box[E]`,
+`include Macros[Box[E]]`, neither `Box[Int]` nor a subclass, and with
+arguments that meet the bounds of the module's type parameters. A subclass of
 `Post` can call `table` too, as it calls its superclasses' class
-methods. A module without type parameters cannot provide `static def`s
-to a class body; the error says what to write instead.
+methods. A module without type parameters has macros too: their `self` is
+a `Meta::ClassDef[Self]`, `Self` the class that includes the module.
 
 ```quarz,check=error
 require_relative "macros"
@@ -310,10 +314,10 @@ require_relative "macros"
 class Post < Model; end
 
 class Comment < Model
-  extend Macros[Post]
+  include Macros[Post]
 end
-# error: `Macros` has `static def`s, which run on the class extending it:
-# extend it as `Macros[Comment]`
+# error: `Macros` has `static def self.` macros, which run on the class including it:
+# include it as `Macros[Comment]`
 ```
 
 ## Blocks as expression trees: `Quoted[P]`
