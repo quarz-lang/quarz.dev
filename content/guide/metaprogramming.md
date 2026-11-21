@@ -469,7 +469,7 @@ the example is two files again:
 module Tables
   # The primes below `n`.
   static def self.primes(n: Int) -> Array[Int]
-    (2...n).select { |i| (2...i).none? { |d| i % d == 0 } }
+    (2...n).to_a.select { |i| (2...i).none? { |d| i % d == 0 } }
   end
 end
 ```
