@@ -337,8 +337,9 @@ for example to build SQL, and can still run the block with `proc`. A
   without one, `self` is a `Capture`); calls of the methods the checker
   chose (`Call`, with a `Meta::MethodRef` naming the method); `And`,
   `Or`, `Not`; `If` (for `if`, `unless` and `?:`); array and hash
-  literals; interpolated strings; and nested blocks (`&:name` becomes
-  one). Each node has its `line`;
+  literals; range literals (`RangeLit`, a bound left out being nil, so
+  that `(18..65).include?(age)` can become SQL); interpolated strings;
+  and nested blocks (`&:name` becomes one). Each node has its `line`;
 - `captures`, the values the `Capture` nodes stand for;
 - `proc`, the block as a closure, and `file`, where it is written.
 
@@ -437,15 +438,16 @@ when `where` is called.
   an error, and `cond.proc.call(...)` runs it.
 - What the tree holds is all a quoted block may contain (with `for`
   comprehensions, which are calls). Anything else (assignments, loops,
-  `case`, `return`, `raise`, ranges, keyword and splat arguments,
+  `case`, `return`, `raise`, keyword and splat arguments,
   lambdas...) is an error at its node:
 
 ```quarz,check=error
 def keep(&cond: Quoted[(Int) -> Bool]) -> Bool = cond.proc.call(1)
 
-keep { |x| (1..3).include?(x) }
-# error: a range cannot be quoted: a block given as a `Quoted` holds
-# literals, variables, `self`, calls, `&&`, `||`, `!`, `if` and blocks
+keep { |x| y = x * 2; y > 3 }
+# error: an assignment cannot be quoted: a block given as a `Quoted`
+# holds literals, ranges, variables, `self`, calls (`&.` too), `&&`,
+# `||`, `!`, `if` and blocks
 ```
 
 - `Quoted[P]` is Shareable when `P` is a `shareable` procedure type
